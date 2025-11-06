@@ -1,0 +1,107 @@
+# DiagnosticoX .gitignore
+
+# Dependencies
+node_modules/
+/.pnp
+.pnp.js
+.yarn/install-state.gz
+
+# Testing
+/coverage
+*.lcov
+.nyc_output
+
+# Production Build
+/dist
+/dist-ssr
+/build
+*.tsbuildinfo
+
+# Environment Variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# API Keys and Secrets
+*.key
+*.pem
+secrets.json
+credentials.json
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*~
+
+# Temporary files
+*.tmp
+*.temp
+*.local
+.cache/
+.parcel-cache/
+.vite-temp/
+
+# OS Files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Medical Data (NEVER commit real patient data)
+/medical-data/
+/patient-data/
+/phi-data/
+# Exception: Example/demo data is allowed
+!examples/*.csv
+!demo-data/*.csv
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Backup files
+*.backup
+*.bak
+*.old
+
+# Bundle Analysis
+bundle-report.html
+stats.json
+
+# Service Worker Cache
+workbox-*.js
+
+# Test artifacts
+__snapshots__/
+.jest-cache/
+
+# Optional caches
+.npm
+.eslintcache
+.stylelintcache
+
+# Sentry Config
+.sentryclirc
+
+# Temporary
+tmp/
+temp/
