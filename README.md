@@ -88,7 +88,7 @@ DiagnosticoX is a comprehensive, production-grade medical diagnosis platform fea
   - 2 concurrent background tasks
   - Automatic retry with exponential backoff
   - Rate limiting to respect API quotas
-  
+
 - **Common Query Pre-fetching**:
   - 18 high-frequency symptoms (chest pain, headache, fever, etc.)
   - 10 common ICD-10 codes
