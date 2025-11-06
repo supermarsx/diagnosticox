@@ -1,0 +1,11 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const diary_controller_1 = require("../controllers/diary.controller");
+const auth_middleware_1 = require("../middleware/auth.middleware");
+const router = (0, express_1.Router)();
+router.use(auth_middleware_1.authenticate);
+router.get('/patient/:patientId', diary_controller_1.diaryController.listForPatient.bind(diary_controller_1.diaryController));
+router.get('/patient/:patientId/stats', diary_controller_1.diaryController.getStats.bind(diary_controller_1.diaryController));
+router.post('/', diary_controller_1.diaryController.create.bind(diary_controller_1.diaryController));
+exports.default = router;

@@ -1,0 +1,36 @@
+{
+  "source": {
+    "include": ["src"],
+    "includePattern": ".+\\.(ts|tsx)$",
+    "excludePattern": "(node_modules/|dist/)"
+  },
+  "plugins": ["plugins/markdown", "node_modules/better-docs/typescript"],
+  "opts": {
+    "template": "node_modules/better-docs",
+    "encoding": "utf8",
+    "destination": "./docs/",
+    "recurse": true,
+    "verbose": true
+  },
+  "templates": {
+    "cleverLinks": false,
+    "monospaceLinks": false,
+    "default": {
+      "outputSourceFiles": true
+    },
+    "better-docs": {
+      "name": "Medical Diagnosis Application API",
+      "title": "Medical Diagnosis Application - API Documentation",
+      "navigation": [
+        {
+          "label": "Clinical Features",
+          "href": "/clinical"
+        },
+        {
+          "label": "Data Models",
+          "href": "/models"
+        }
+      ]
+    }
+  }
+}

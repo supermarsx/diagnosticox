@@ -1,0 +1,12 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const bayesian_controller_1 = require("../controllers/bayesian.controller");
+const auth_middleware_1 = require("../middleware/auth.middleware");
+const router = (0, express_1.Router)();
+router.use(auth_middleware_1.authenticate);
+router.post('/calculate', bayesian_controller_1.bayesianController.calculate.bind(bayesian_controller_1.bayesianController));
+router.post('/calculate-both', bayesian_controller_1.bayesianController.calculateBoth.bind(bayesian_controller_1.bayesianController));
+router.post('/from-sens-spec', bayesian_controller_1.bayesianController.calculateFromSensSpec.bind(bayesian_controller_1.bayesianController));
+router.post('/recommend-tier', bayesian_controller_1.bayesianController.recommendTier.bind(bayesian_controller_1.bayesianController));
+exports.default = router;

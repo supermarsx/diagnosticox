@@ -1,756 +1,478 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Slider } from '@/components/ui/slider';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
-import { Heart, Thermometer, Activity, Wind, Droplets, AlertTriangle, Play, Pause, Square } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { realtimeMonitoringService } from '@/services/realtimeMonitoringService';
-import type { VitalSign, Patient, ThresholdAlert } from '@/types';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+  ArrowLeft, Activity, Heart, Thermometer, Wind, Droplet,
+  AlertTriangle, Play, Pause, Settings, RefreshCw, TrendingUp,
+  TrendingDown, CheckCircle, X, Bell
+} from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import {
+  realtimeMonitoringService,
+  VitalSign,
+  Alert,
+  MonitoringThresholds,
+} from '../services/realtimeMonitoringService';
 
-interface MonitoringSession {
-  id: string;
-  patientId: string;
-  startTime: Date;
-  endTime?: Date;
-  isActive: boolean;
-  vitalSigns: VitalSign[];
+interface RealtimeMonitoringPageProps {
+  user: any;
 }
 
-interface Thresholds {
-  heartRate: { min: number; max: number };
-  bloodPressure: { systolicMin: number; systolicMax: number; diastolicMin: number; diastolicMax: number };
-  temperature: { min: number; max: number };
-  respiratoryRate: { min: number; max: number };
-  oxygenSaturation: { min: number; max: number };
-}
-
-const DEFAULT_THRESHOLDS: Thresholds = {
-  heartRate: { min: 60, max: 100 },
-  bloodPressure: { systolicMin: 90, systolicMax: 140, diastolicMin: 60, diastolicMax: 90 },
-  temperature: { min: 36.0, max: 37.5 },
-  respiratoryRate: { min: 12, max: 20 },
-  oxygenSaturation: { min: 95, max: 100 }
-};
-
-export default function RealtimeMonitoringPage() {
-  const [patients, setPatients] = useState<Patient[]>([]);
-  const [selectedPatient, setSelectedPatient] = useState<string>('');
-  const [monitoringSession, setMonitoringSession] = useState<MonitoringSession | null>(null);
+export default function RealtimeMonitoringPage({ user }: RealtimeMonitoringPageProps) {
+  const navigate = useNavigate();
+  const [selectedPatient, setSelectedPatient] = useState<string>('patient-1');
   const [currentVitals, setCurrentVitals] = useState<VitalSign | null>(null);
   const [vitalHistory, setVitalHistory] = useState<VitalSign[]>([]);
-  const [alerts, setAlerts] = useState<ThresholdAlert[]>([]);
-  const [thresholds, setThresholds] = useState<Thresholds>(DEFAULT_THRESHOLDS);
+  const [alerts, setAlerts] = useState<Alert[]>([]);
   const [isMonitoring, setIsMonitoring] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'connecting' | 'disconnected'>('disconnected');
-  const { toast } = useToast();
-  const wsRef = useRef<WebSocket | null>(null);
+  const [showThresholds, setShowThresholds] = useState(false);
+  const [thresholds, setThresholds] = useState<MonitoringThresholds>(
+    realtimeMonitoringService.getThresholds()
+  );
+
+  const patients = realtimeMonitoringService.getMonitoredPatients();
 
   useEffect(() => {
-    loadPatients();
+    // Subscribe to real-time updates
+    const unsubscribe = realtimeMonitoringService.subscribe((data) => {
+      if (data.type === 'vital_update' && data.patientId === selectedPatient) {
+        setCurrentVitals(data.vitals);
+        // Reload history with current selected patient
+        const history = realtimeMonitoringService.getVitalHistory(selectedPatient, 20);
+        setVitalHistory(history);
+      }
+      
+      if (data.type === 'critical_event') {
+        // Refresh alerts on critical events
+        const allAlerts = realtimeMonitoringService.getAlerts({
+          patientId: selectedPatient,
+          acknowledged: false,
+        });
+        setAlerts(allAlerts);
+      }
+    });
+
+    // Load initial data for selected patient
+    loadCurrentVitals();
+    updateHistory();
+    loadAlerts();
+
     return () => {
-      disconnectWebSocket();
+      unsubscribe();
     };
-  }, []);
+  }, [selectedPatient]);
 
   useEffect(() => {
-    if (isMonitoring && selectedPatient) {
-      connectWebSocket();
+    if (isMonitoring) {
+      realtimeMonitoringService.startMonitoring();
     } else {
-      disconnectWebSocket();
+      realtimeMonitoringService.stopMonitoring();
     }
-  }, [isMonitoring, selectedPatient]);
+  }, [isMonitoring]);
 
-  const loadPatients = async () => {
-    try {
-      const patientsData = await realtimeMonitoringService.getPatients();
-      setPatients(patientsData);
-    } catch (error) {
-      console.error('Failed to load patients:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load patients',
-        variant: 'destructive'
-      });
-    }
+  const loadCurrentVitals = () => {
+    const vitals = realtimeMonitoringService.getCurrentVitals(selectedPatient);
+    setCurrentVitals(vitals);
   };
 
-  const connectWebSocket = () => {
-    if (wsRef.current) {
-      wsRef.current.close();
-    }
-
-    setConnectionStatus('connecting');
-    
-    try {
-      const ws = new WebSocket(realtimeMonitoringService.getWebSocketUrl(selectedPatient));
-      wsRef.current = ws;
-
-      ws.onopen = () => {
-        console.log('WebSocket connected');
-        setConnectionStatus('connected');
-        toast({
-          title: 'Connected',
-          description: 'Real-time monitoring connected'
-        });
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          
-          if (data.type === 'vital_sign') {
-            const vitalSign: VitalSign = data.payload;
-            setCurrentVitals(vitalSign);
-            setVitalHistory(prev => {
-              const updated = [...prev, vitalSign];
-              // Keep only last 50 readings for performance
-              return updated.slice(-50);
-            });
-            
-            // Check for threshold violations
-            checkThresholds(vitalSign);
-          } else if (data.type === 'alert') {
-            const alert: ThresholdAlert = data.payload;
-            setAlerts(prev => [alert, ...prev.slice(0, 19)]); // Keep last 20 alerts
-            
-            toast({
-              title: 'Alert',
-              description: alert.message,
-              variant: 'destructive'
-            });
-          }
-        } catch (error) {
-          console.error('Failed to parse WebSocket message:', error);
-        }
-      };
-
-      ws.onclose = () => {
-        console.log('WebSocket disconnected');
-        setConnectionStatus('disconnected');
-        if (isMonitoring) {
-          toast({
-            title: 'Disconnected',
-            description: 'Real-time monitoring disconnected',
-            variant: 'destructive'
-          });
-        }
-      };
-
-      ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
-        setConnectionStatus('disconnected');
-        toast({
-          title: 'Connection Error',
-          description: 'Failed to connect to real-time monitoring',
-          variant: 'destructive'
-        });
-      };
-    } catch (error) {
-      console.error('Failed to create WebSocket connection:', error);
-      setConnectionStatus('disconnected');
-      toast({
-        title: 'Connection Error',
-        description: 'Failed to create WebSocket connection',
-        variant: 'destructive'
-      });
-    }
+  const updateHistory = () => {
+    const history = realtimeMonitoringService.getVitalHistory(selectedPatient, 20);
+    setVitalHistory(history);
   };
 
-  const disconnectWebSocket = () => {
-    if (wsRef.current) {
-      wsRef.current.close();
-      wsRef.current = null;
-    }
-    setConnectionStatus('disconnected');
-  };
-
-  const startMonitoring = () => {
-    if (!selectedPatient) {
-      toast({
-        title: 'Error',
-        description: 'Please select a patient first',
-        variant: 'destructive'
-      });
-      return;
-    }
-
-    const session: MonitoringSession = {
-      id: `session_${Date.now()}`,
+  const loadAlerts = () => {
+    const allAlerts = realtimeMonitoringService.getAlerts({
       patientId: selectedPatient,
-      startTime: new Date(),
-      isActive: true,
-      vitalSigns: []
-    };
+      acknowledged: false,
+    });
+    setAlerts(allAlerts);
+  };
+
+  const handleAcknowledgeAlert = (alertId: string) => {
+    realtimeMonitoringService.acknowledgeAlert(alertId);
+    loadAlerts();
+  };
+
+  const handleClearAcknowledged = () => {
+    realtimeMonitoringService.clearAcknowledgedAlerts();
+    loadAlerts();
+  };
+
+  const handleSimulateCritical = () => {
+    realtimeMonitoringService.simulateCriticalEvent(selectedPatient);
+    setTimeout(() => {
+      loadCurrentVitals();
+      updateHistory();
+      loadAlerts();
+    }, 100);
+  };
+
+  const getVitalStatus = (value: number, thresholdKey: keyof MonitoringThresholds) => {
+    const threshold = thresholds[thresholdKey];
+    if (value < threshold.critical.min || value > threshold.critical.max) {
+      return { status: 'critical', color: 'text-red-600', bg: 'bg-red-100' };
+    }
+    if (value < threshold.min || value > threshold.max) {
+      return { status: 'warning', color: 'text-orange-600', bg: 'bg-orange-100' };
+    }
+    return { status: 'normal', color: 'text-green-600', bg: 'bg-green-100' };
+  };
+
+  const getTrend = (history: VitalSign[], key: keyof VitalSign) => {
+    if (history.length < 2) return null;
+    const recent = history.slice(-5).map((v) => v[key] as number);
+    const avg = recent.reduce((a, b) => a + b, 0) / recent.length;
+    const current = recent[recent.length - 1];
+    if (current > avg * 1.05) return 'up';
+    if (current < avg * 0.95) return 'down';
+    return 'stable';
+  };
+
+  const renderVitalCard = (
+    title: string,
+    value: number | undefined,
+    unit: string,
+    Icon: any,
+    thresholdKey: keyof MonitoringThresholds,
+    historyKey: keyof VitalSign
+  ) => {
+    if (value === undefined) return null;
     
-    setMonitoringSession(session);
-    setIsMonitoring(true);
-    setVitalHistory([]);
-    setAlerts([]);
-  };
+    const status = getVitalStatus(value, thresholdKey);
+    const trend = getTrend(vitalHistory, historyKey);
 
-  const stopMonitoring = () => {
-    if (monitoringSession) {
-      const updatedSession = {
-        ...monitoringSession,
-        endTime: new Date(),
-        isActive: false
-      };
-      setMonitoringSession(updatedSession);
-    }
-    
-    setIsMonitoring(false);
-    disconnectWebSocket();
-  };
-
-  const checkThresholds = (vital: VitalSign) => {
-    const newAlerts: ThresholdAlert[] = [];
-
-    // Check heart rate
-    if (vital.heartRate < thresholds.heartRate.min || vital.heartRate > thresholds.heartRate.max) {
-      newAlerts.push({
-        id: `hr_${Date.now()}`,
-        type: 'heart_rate',
-        message: `Heart rate ${vital.heartRate} is outside normal range (${thresholds.heartRate.min}-${thresholds.heartRate.max} bpm)`,
-        severity: 'warning',
-        timestamp: new Date(),
-        value: vital.heartRate,
-        threshold: thresholds.heartRate
-      });
-    }
-
-    // Check blood pressure
-    if (vital.bloodPressure) {
-      const { systolic, diastolic } = vital.bloodPressure;
-      if (systolic < thresholds.bloodPressure.systolicMin || systolic > thresholds.bloodPressure.systolicMax ||
-          diastolic < thresholds.bloodPressure.diastolicMin || diastolic > thresholds.bloodPressure.diastolicMax) {
-        newAlerts.push({
-          id: `bp_${Date.now()}`,
-          type: 'blood_pressure',
-          message: `Blood pressure ${systolic}/${diastolic} mmHg is outside normal range`,
-          severity: 'warning',
-          timestamp: new Date(),
-          value: `${systolic}/${diastolic}`,
-          threshold: thresholds.bloodPressure
-        });
-      }
-    }
-
-    // Check temperature
-    if (vital.temperature < thresholds.temperature.min || vital.temperature > thresholds.temperature.max) {
-      newAlerts.push({
-        id: `temp_${Date.now()}`,
-        type: 'temperature',
-        message: `Temperature ${vital.temperature}°C is outside normal range (${thresholds.temperature.min}-${thresholds.temperature.max}°C)`,
-        severity: 'warning',
-        timestamp: new Date(),
-        value: vital.temperature,
-        threshold: thresholds.temperature
-      });
-    }
-
-    // Check respiratory rate
-    if (vital.respiratoryRate < thresholds.respiratoryRate.min || vital.respiratoryRate > thresholds.respiratoryRate.max) {
-      newAlerts.push({
-        id: `rr_${Date.now()}`,
-        type: 'respiratory_rate',
-        message: `Respiratory rate ${vital.respiratoryRate} bpm is outside normal range (${thresholds.respiratoryRate.min}-${thresholds.respiratoryRate.max} bpm)`,
-        severity: 'warning',
-        timestamp: new Date(),
-        value: vital.respiratoryRate,
-        threshold: thresholds.respiratoryRate
-      });
-    }
-
-    // Check oxygen saturation
-    if (vital.oxygenSaturation < thresholds.oxygenSaturation.min) {
-      newAlerts.push({
-        id: `o2_${Date.now()}`,
-        type: 'oxygen_saturation',
-        message: `Oxygen saturation ${vital.oxygenSaturation}% is below normal range (≥${thresholds.oxygenSaturation.min}%)`,
-        severity: 'critical',
-        timestamp: new Date(),
-        value: vital.oxygenSaturation,
-        threshold: thresholds.oxygenSaturation
-      });
-    }
-
-    if (newAlerts.length > 0) {
-      setAlerts(prev => [...newAlerts, ...prev].slice(0, 20));
-    }
-  };
-
-  const updateThreshold = (type: keyof Thresholds, field: string, value: number) => {
-    setThresholds(prev => ({
-      ...prev,
-      [type]: {
-        ...prev[type],
-        [field]: value
-      }
-    }));
-  };
-
-  const getConnectionStatusColor = () => {
-    switch (connectionStatus) {
-      case 'connected': return 'text-green-500';
-      case 'connecting': return 'text-yellow-500';
-      default: return 'text-red-500';
-    }
-  };
-
-  const formatChartData = () => {
-    return vitalHistory.map((vital, index) => ({
-      time: new Date(vital.timestamp).toLocaleTimeString(),
-      heartRate: vital.heartRate,
-      temperature: vital.temperature,
-      respiratoryRate: vital.respiratoryRate,
-      oxygenSaturation: vital.oxygenSaturation,
-      systolic: vital.bloodPressure?.systolic || null,
-      diastolic: vital.bloodPressure?.diastolic || null
-    }));
-  };
-
-  return (
-    <div className="container mx-auto py-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold">Real-Time Monitoring</h1>
-          <p className="text-muted-foreground mt-2">
-            Monitor patient vital signs in real-time with threshold alerts
-          </p>
+    return (
+      <div className={`glass-card p-6 hover-lift ${status.bg} bg-opacity-20`}>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className={`glass-card-subtle p-3 rounded-xl ${status.color}`}>
+              <Icon className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-600">{title}</p>
+              <div className="flex items-baseline gap-2">
+                <p className={`text-3xl font-bold ${status.color}`}>
+                  {typeof value === 'number' ? value.toFixed(title.includes('Temperature') ? 1 : 0) : value}
+                </p>
+                <span className="text-sm text-gray-600">{unit}</span>
+              </div>
+            </div>
+          </div>
+          <div className="flex flex-col items-end gap-2">
+            {trend === 'up' && <TrendingUp className="h-5 w-5 text-red-600" />}
+            {trend === 'down' && <TrendingDown className="h-5 w-5 text-blue-600" />}
+            {trend === 'stable' && <Activity className="h-5 w-5 text-green-600" />}
+            <span className={`px-2 py-1 rounded-full text-xs font-medium ${status.bg} ${status.color}`}>
+              {status.status.toUpperCase()}
+            </span>
+          </div>
         </div>
-        <div className="flex items-center space-x-2">
-          <Badge variant={connectionStatus === 'connected' ? 'default' : 'destructive'}>
-            <div className={`w-2 h-2 rounded-full mr-2 ${getConnectionStatusColor()}`}></div>
-            {connectionStatus}
-          </Badge>
+
+        {/* Mini chart */}
+        <div className="h-16">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={vitalHistory.slice(-10).map((v, i) => ({ index: i, value: v[historyKey] }))}>
+              <Line
+                type="monotone"
+                dataKey="value"
+                stroke={status.status === 'critical' ? '#dc2626' : status.status === 'warning' ? '#ea580c' : '#10b981'}
+                strokeWidth={2}
+                dot={false}
+              />
+            </LineChart>
+          </ResponsiveContainer>
         </div>
       </div>
+    );
+  };
 
-      {/* Control Panel */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Monitoring Controls</CardTitle>
-          <CardDescription>Select a patient and start real-time monitoring</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center space-x-4">
-            <div className="flex-1">
-              <label className="text-sm font-medium mb-2 block">Patient</label>
-              <Select value={selectedPatient} onValueChange={setSelectedPatient}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a patient" />
-                </SelectTrigger>
-                <SelectContent>
-                  {patients.map(patient => (
-                    <SelectItem key={patient.id} value={patient.id}>
-                      {patient.name} - {patient.id}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex space-x-2">
-              {!isMonitoring ? (
-                <Button onClick={startMonitoring} disabled={!selectedPatient}>
-                  <Play className="w-4 h-4 mr-2" />
-                  Start Monitoring
-                </Button>
-              ) : (
-                <Button onClick={stopMonitoring} variant="destructive">
-                  <Square className="w-4 h-4 mr-2" />
-                  Stop Monitoring
-                </Button>
-              )}
-            </div>
-          </div>
-          
-          {monitoringSession && (
-            <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-              <span>Session: {monitoringSession.id}</span>
-              <span>Started: {monitoringSession.startTime.toLocaleTimeString()}</span>
-              <span>Readings: {vitalHistory.length}</span>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+  const selectedPatientData = patients.find((p) => p.id === selectedPatient);
 
-      <Tabs defaultValue="current" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="current">Current Vitals</TabsTrigger>
-          <TabsTrigger value="history">Vital History</TabsTrigger>
-          <TabsTrigger value="alerts">Alerts</TabsTrigger>
-          <TabsTrigger value="thresholds">Thresholds</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="current" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {/* Heart Rate */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Heart Rate</CardTitle>
-                <Heart className="h-4 w-4 text-red-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {currentVitals?.heartRate || '--'}
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+      {/* Header */}
+      <header className="glass-nav sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <button
+                onClick={() => navigate('/dashboard')}
+                className="glass-card-subtle p-2 rounded-xl mr-4 hover:scale-110 transition-transform"
+              >
+                <ArrowLeft className="h-6 w-6 text-gray-700" />
+              </button>
+              <div className="flex items-center gap-3">
+                <div className="glass-card-strong p-3 rounded-2xl relative">
+                  <Activity className="h-8 w-8 text-indigo-600" />
+                  {isMonitoring && (
+                    <span className="absolute -top-1 -right-1 h-3 w-3 bg-green-500 rounded-full animate-pulse"></span>
+                  )}
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  bpm
-                </p>
-                {currentVitals && (
-                  <div className={`text-xs ${
-                    currentVitals.heartRate < thresholds.heartRate.min || currentVitals.heartRate > thresholds.heartRate.max
-                      ? 'text-red-500' : 'text-green-500'
-                  }`}>
-                    {currentVitals.heartRate < thresholds.heartRate.min || currentVitals.heartRate > thresholds.heartRate.max
-                      ? 'Out of range' : 'Normal'
-                    }
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Blood Pressure */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Blood Pressure</CardTitle>
-                <Activity className="h-4 w-4 text-blue-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {currentVitals?.bloodPressure 
-                    ? `${currentVitals.bloodPressure.systolic}/${currentVitals.bloodPressure.diastolic}`
-                    : '--/--'
-                  }
+                <div>
+                  <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                    Real-Time Monitoring
+                  </h1>
+                  <p className="text-sm text-gray-600">
+                    Live vital signs and patient monitoring
+                  </p>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  mmHg
-                </p>
-                {currentVitals?.bloodPressure && (
-                  <div className={`text-xs ${
-                    (currentVitals.bloodPressure.systolic < thresholds.bloodPressure.systolicMin || 
-                     currentVitals.bloodPressure.systolic > thresholds.bloodPressure.systolicMax ||
-                     currentVitals.bloodPressure.diastolic < thresholds.bloodPressure.diastolicMin || 
-                     currentVitals.bloodPressure.diastolic > thresholds.bloodPressure.diastolicMax)
-                      ? 'text-red-500' : 'text-green-500'
-                  }`}>
-                    {(currentVitals.bloodPressure.systolic < thresholds.bloodPressure.systolicMin || 
-                      currentVitals.bloodPressure.systolic > thresholds.bloodPressure.systolicMax ||
-                      currentVitals.bloodPressure.diastolic < thresholds.bloodPressure.diastolicMin || 
-                      currentVitals.bloodPressure.diastolic > thresholds.bloodPressure.diastolicMax)
-                      ? 'Out of range' : 'Normal'
-                    }
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Temperature */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Temperature</CardTitle>
-                <Thermometer className="h-4 w-4 text-orange-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {currentVitals?.temperature ? `${currentVitals.temperature}°C` : '--°C'}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Celsius
-                </p>
-                {currentVitals && (
-                  <div className={`text-xs ${
-                    currentVitals.temperature < thresholds.temperature.min || currentVitals.temperature > thresholds.temperature.max
-                      ? 'text-red-500' : 'text-green-500'
-                  }`}>
-                    {currentVitals.temperature < thresholds.temperature.min || currentVitals.temperature > thresholds.temperature.max
-                      ? 'Out of range' : 'Normal'
-                    }
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Respiratory Rate */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Respiratory Rate</CardTitle>
-                <Wind className="h-4 w-4 text-green-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {currentVitals?.respiratoryRate || '--'}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  breaths/min
-                </p>
-                {currentVitals && (
-                  <div className={`text-xs ${
-                    currentVitals.respiratoryRate < thresholds.respiratoryRate.min || currentVitals.respiratoryRate > thresholds.respiratoryRate.max
-                      ? 'text-red-500' : 'text-green-500'
-                  }`}>
-                    {currentVitals.respiratoryRate < thresholds.respiratoryRate.min || currentVitals.respiratoryRate > thresholds.respiratoryRate.max
-                      ? 'Out of range' : 'Normal'
-                    }
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Oxygen Saturation */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Oxygen Saturation</CardTitle>
-                <Droplets className="h-4 w-4 text-blue-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {currentVitals?.oxygenSaturation ? `${currentVitals.oxygenSaturation}%` : '--%'}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  SpO2
-                </p>
-                {currentVitals && (
-                  <div className={`text-xs ${
-                    currentVitals.oxygenSaturation < thresholds.oxygenSaturation.min
-                      ? 'text-red-500' : 'text-green-500'
-                  }`}>
-                    {currentVitals.oxygenSaturation < thresholds.oxygenSaturation.min
-                      ? 'Low' : 'Normal'
-                    }
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="history" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Vital Signs History</CardTitle>
-              <CardDescription>Historical chart of vital signs over time</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="h-96">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={formatChartData()}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="time" />
-                    <YAxis />
-                    <Tooltip />
-                    <Line type="monotone" dataKey="heartRate" stroke="#ef4444" name="Heart Rate" strokeWidth={2} />
-                    <Line type="monotone" dataKey="temperature" stroke="#f97316" name="Temperature" strokeWidth={2} />
-                    <Line type="monotone" dataKey="respiratoryRate" stroke="#22c55e" name="Respiratory Rate" strokeWidth={2} />
-                    <Line type="monotone" dataKey="oxygenSaturation" stroke="#3b82f6" name="Oxygen Saturation" strokeWidth={2} />
-                  </LineChart>
-                </ResponsiveContainer>
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setIsMonitoring(!isMonitoring)}
+                className={`${
+                  isMonitoring ? 'glass-button-primary' : 'glass-button'
+                } flex items-center gap-2`}
+              >
+                {isMonitoring ? (
+                  <>
+                    <Pause className="h-4 w-4" />
+                    Stop
+                  </>
+                ) : (
+                  <>
+                    <Play className="h-4 w-4" />
+                    Start
+                  </>
+                )}
+              </button>
+              <button
+                onClick={handleSimulateCritical}
+                className="glass-button flex items-center gap-2 text-red-600"
+              >
+                <AlertTriangle className="h-4 w-4" />
+                Simulate Critical
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
 
-        <TabsContent value="alerts" className="space-y-4">
-          <div className="space-y-4">
-            {alerts.length === 0 ? (
-              <Card>
-                <CardContent className="text-center py-8">
-                  <AlertTriangle className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                  <p className="text-muted-foreground">No alerts at this time</p>
-                </CardContent>
-              </Card>
-            ) : (
-              alerts.map(alert => (
-                <Alert key={alert.id} variant={alert.severity === 'critical' ? 'destructive' : 'default'}>
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertDescription>
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="font-medium">{alert.message}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {alert.timestamp.toLocaleString()}
-                        </p>
-                      </div>
-                      <Badge variant={alert.severity === 'critical' ? 'destructive' : 'secondary'}>
-                        {alert.severity}
-                      </Badge>
-                    </div>
-                  </AlertDescription>
-                </Alert>
-              ))
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        {/* Patient Selector */}
+        <div className="glass-card p-4">
+          <div className="flex items-center gap-4">
+            <p className="text-sm font-medium text-gray-700">Monitoring:</p>
+            <div className="flex gap-2">
+              {patients.map((patient) => (
+                <button
+                  key={patient.id}
+                  onClick={() => setSelectedPatient(patient.id)}
+                  className={`px-4 py-2 rounded-xl font-medium transition-all ${
+                    selectedPatient === patient.id
+                      ? 'bg-indigo-600 text-white'
+                      : 'glass-card-subtle hover:glass-card text-gray-700'
+                  }`}
+                >
+                  {patient.name}
+                </button>
+              ))}
+            </div>
+            {currentVitals && (
+              <div className="ml-auto flex items-center gap-2 text-sm text-gray-600">
+                <RefreshCw className="h-4 w-4" />
+                Last update: {new Date(currentVitals.timestamp).toLocaleTimeString()}
+              </div>
             )}
           </div>
-        </TabsContent>
+        </div>
 
-        <TabsContent value="thresholds" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Threshold Configuration</CardTitle>
-              <CardDescription>Configure alert thresholds for vital signs</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Heart Rate Thresholds */}
-              <div className="space-y-2">
-                <h4 className="font-medium">Heart Rate (bpm)</h4>
-                <div className="space-y-2">
-                  <div>
-                    <label className="text-sm">Minimum: {thresholds.heartRate.min}</label>
-                    <Slider
-                      value={[thresholds.heartRate.min]}
-                      onValueChange={([value]) => updateThreshold('heartRate', 'min', value)}
-                      min={30}
-                      max={150}
-                      step={1}
-                      className="mt-1"
-                    />
+        {/* Critical Alerts Banner */}
+        {alerts.filter((a) => a.severity === 'critical').length > 0 && (
+          <div className="glass-card p-4 bg-red-50 border-2 border-red-300">
+            <div className="flex items-center gap-3">
+              <AlertTriangle className="h-6 w-6 text-red-600 animate-pulse" />
+              <div className="flex-1">
+                <p className="font-semibold text-red-900">CRITICAL ALERT</p>
+                <p className="text-sm text-red-700">
+                  {alerts.filter((a) => a.severity === 'critical').length} critical vital sign alerts require immediate attention
+                </p>
+              </div>
+              <button
+                onClick={() => navigate('/notifications')}
+                className="bg-red-600 text-white px-4 py-2 rounded-xl font-medium hover:bg-red-700 transition-all"
+              >
+                View Alerts
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Vital Signs Grid */}
+        {currentVitals && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {renderVitalCard(
+              'Heart Rate',
+              currentVitals.heartRate,
+              'bpm',
+              Heart,
+              'heartRate',
+              'heartRate'
+            )}
+            {renderVitalCard(
+              'Blood Pressure',
+              currentVitals.bloodPressureSystolic,
+              `/${currentVitals.bloodPressureDiastolic} mmHg`,
+              Activity,
+              'bloodPressureSystolic',
+              'bloodPressureSystolic'
+            )}
+            {renderVitalCard(
+              'Temperature',
+              currentVitals.temperature,
+              '°C',
+              Thermometer,
+              'temperature',
+              'temperature'
+            )}
+            {renderVitalCard(
+              'Oxygen Saturation',
+              currentVitals.oxygenSaturation,
+              '%',
+              Wind,
+              'oxygenSaturation',
+              'oxygenSaturation'
+            )}
+            {renderVitalCard(
+              'Respiratory Rate',
+              currentVitals.respiratoryRate,
+              'breaths/min',
+              Activity,
+              'respiratoryRate',
+              'respiratoryRate'
+            )}
+            {currentVitals.glucoseLevel && (
+              <div className="glass-card p-6 hover-lift">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="glass-card-subtle p-3 rounded-xl text-purple-600">
+                    <Droplet className="h-6 w-6" />
                   </div>
                   <div>
-                    <label className="text-sm">Maximum: {thresholds.heartRate.max}</label>
-                    <Slider
-                      value={[thresholds.heartRate.max]}
-                      onValueChange={([value]) => updateThreshold('heartRate', 'max', value)}
-                      min={30}
-                      max={150}
-                      step={1}
-                      className="mt-1"
-                    />
+                    <p className="text-sm font-medium text-gray-600">Glucose Level</p>
+                    <div className="flex items-baseline gap-2">
+                      <p className="text-3xl font-bold text-purple-600">{currentVitals.glucoseLevel}</p>
+                      <span className="text-sm text-gray-600">mg/dL</span>
+                    </div>
                   </div>
                 </div>
               </div>
+            )}
+          </div>
+        )}
 
-              {/* Blood Pressure Thresholds */}
-              <div className="space-y-2">
-                <h4 className="font-medium">Blood Pressure (mmHg)</h4>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-sm">Systolic Min: {thresholds.bloodPressure.systolicMin}</label>
-                    <Slider
-                      value={[thresholds.bloodPressure.systolicMin]}
-                      onValueChange={([value]) => updateThreshold('bloodPressure', 'systolicMin', value)}
-                      min={70}
-                      max={200}
-                      step={1}
-                      className="mt-1"
+        {/* Active Alerts */}
+        {alerts.length > 0 && (
+          <div className="glass-card p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Bell className="h-5 w-5 text-orange-600" />
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Active Alerts ({alerts.length})
+                </h3>
+              </div>
+              <button
+                onClick={handleClearAcknowledged}
+                className="glass-button text-sm"
+              >
+                Clear Acknowledged
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {alerts.slice(0, 10).map((alert) => (
+                <div
+                  key={alert.id}
+                  className={`glass-card-subtle p-4 rounded-xl ${
+                    alert.severity === 'critical' ? 'bg-red-50' : 'bg-orange-50'
+                  }`}
+                >
+                  <div className="flex items-start gap-4">
+                    <AlertTriangle
+                      className={`h-5 w-5 ${
+                        alert.severity === 'critical' ? 'text-red-600' : 'text-orange-600'
+                      }`}
                     />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm">Systolic Max: {thresholds.bloodPressure.systolicMax}</label>
-                    <Slider
-                      value={[thresholds.bloodPressure.systolicMax]}
-                      onValueChange={([value]) => updateThreshold('bloodPressure', 'systolicMax', value)}
-                      min={70}
-                      max={200}
-                      step={1}
-                      className="mt-1"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm">Diastolic Min: {thresholds.bloodPressure.diastolicMin}</label>
-                    <Slider
-                      value={[thresholds.bloodPressure.diastolicMin]}
-                      onValueChange={([value]) => updateThreshold('bloodPressure', 'diastolicMin', value)}
-                      min={40}
-                      max={120}
-                      step={1}
-                      className="mt-1"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm">Diastolic Max: {thresholds.bloodPressure.diastolicMax}</label>
-                    <Slider
-                      value={[thresholds.bloodPressure.diastolicMax]}
-                      onValueChange={([value]) => updateThreshold('bloodPressure', 'diastolicMax', value)}
-                      min={40}
-                      max={120}
-                      step={1}
-                      className="mt-1"
-                    />
+                    <div className="flex-1">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="font-semibold text-gray-900">{alert.vitalType} Alert</p>
+                          <p className="text-sm text-gray-600 mt-1">{alert.message}</p>
+                          <p className="text-xs text-gray-500 mt-2">
+                            {new Date(alert.timestamp).toLocaleString()}
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <span
+                            className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              alert.severity === 'critical'
+                                ? 'bg-red-100 text-red-700'
+                                : 'bg-orange-100 text-orange-700'
+                            }`}
+                          >
+                            {alert.severity.toUpperCase()}
+                          </span>
+                          <button
+                            onClick={() => handleAcknowledgeAlert(alert.id)}
+                            className="glass-card-subtle p-1.5 rounded-lg hover:bg-green-100 text-green-600"
+                            title="Acknowledge"
+                          >
+                            <CheckCircle className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
+              ))}
+            </div>
+          </div>
+        )}
 
-              {/* Temperature Thresholds */}
-              <div className="space-y-2">
-                <h4 className="font-medium">Temperature (°C)</h4>
-                <div className="space-y-2">
-                  <div>
-                    <label className="text-sm">Minimum: {thresholds.temperature.min}°C</label>
-                    <Slider
-                      value={[thresholds.temperature.min]}
-                      onValueChange={([value]) => updateThreshold('temperature', 'min', value)}
-                      min={30}
-                      max={40}
-                      step={0.1}
-                      className="mt-1"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm">Maximum: {thresholds.temperature.max}°C</label>
-                    <Slider
-                      value={[thresholds.temperature.max]}
-                      onValueChange={([value]) => updateThreshold('temperature', 'max', value)}
-                      min={30}
-                      max={40}
-                      step={0.1}
-                      className="mt-1"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Respiratory Rate Thresholds */}
-              <div className="space-y-2">
-                <h4 className="font-medium">Respiratory Rate (breaths/min)</h4>
-                <div className="space-y-2">
-                  <div>
-                    <label className="text-sm">Minimum: {thresholds.respiratoryRate.min}</label>
-                    <Slider
-                      value={[thresholds.respiratoryRate.min]}
-                      onValueChange={([value]) => updateThreshold('respiratoryRate', 'min', value)}
-                      min={5}
-                      max={40}
-                      step={1}
-                      className="mt-1"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm">Maximum: {thresholds.respiratoryRate.max}</label>
-                    <Slider
-                      value={[thresholds.respiratoryRate.max]}
-                      onValueChange={([value]) => updateThreshold('respiratoryRate', 'max', value)}
-                      min={5}
-                      max={40}
-                      step={1}
-                      className="mt-1"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Oxygen Saturation Thresholds */}
-              <div className="space-y-2">
-                <h4 className="font-medium">Oxygen Saturation (%)</h4>
-                <div>
-                  <label className="text-sm">Minimum: {thresholds.oxygenSaturation.min}%</label>
-                  <Slider
-                    value={[thresholds.oxygenSaturation.min]}
-                    onValueChange={([value]) => updateThreshold('oxygenSaturation', 'min', value)}
-                    min={80}
-                    max={100}
-                    step={1}
-                    className="mt-1"
+        {/* Vital Signs History Chart */}
+        {vitalHistory.length > 0 && (
+          <div className="glass-card p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Vital Signs Trends</h3>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={vitalHistory}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis
+                    dataKey="timestamp"
+                    tickFormatter={(value) => new Date(value).toLocaleTimeString()}
+                    stroke="#6b7280"
                   />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+                  <YAxis stroke="#6b7280" />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                      border: 'none',
+                      borderRadius: '12px',
+                      boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                    }}
+                    labelFormatter={(value) => new Date(value).toLocaleString()}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="heartRate"
+                    stroke="#ef4444"
+                    strokeWidth={2}
+                    name="Heart Rate"
+                    dot={{ r: 3 }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="oxygenSaturation"
+                    stroke="#3b82f6"
+                    strokeWidth={2}
+                    name="SpO2"
+                    dot={{ r: 3 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
+      </main>
     </div>
   );
 }

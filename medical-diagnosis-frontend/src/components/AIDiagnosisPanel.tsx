@@ -150,7 +150,7 @@ export function AIDiagnosisPanel({ patientId, symptoms, onAnalysisComplete }: AI
 
                     {/* Confidence Score */}
                     <div className="text-right flex-shrink-0 ml-4">
-                      <div className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
+                      <div className="text-4xl font-bold bg-gradient-to-r {getConfidenceColor(suggestion.confidence)} bg-clip-text text-transparent">
                         {(suggestion.confidence * 100).toFixed(1)}%
                       </div>
                       <p className="text-xs text-gray-600 font-medium mt-1">Confidence</p>

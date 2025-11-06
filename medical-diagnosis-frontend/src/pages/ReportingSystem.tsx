@@ -1,771 +1,443 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
-  FileText,
-  Download,
-  Send,
-  Calendar,
-  Filter,
-  Search,
-  Settings,
-  TrendingUp,
-  BarChart3,
-  PieChart,
-  Activity,
-  Users,
-  AlertCircle,
-  CheckCircle,
-  Clock,
-  Plus,
-  Eye,
-  Edit,
-  Trash2
+  ArrowLeft, FileText, Download, Calendar, Filter,
+  Users, Activity, TrendingUp, BarChart3, Clock, Send
 } from 'lucide-react';
 import { analyticsService } from '../services/analyticsService';
 
+interface ReportingSystemProps {
+  user: any;
+}
+
 interface Report {
   id: string;
-  title: string;
-  description: string;
-  type: 'clinical' | 'quality' | 'financial' | 'research' | 'regulatory';
-  status: 'draft' | 'generating' | 'completed' | 'failed' | 'scheduled';
-  createdAt: Date;
-  completedAt?: Date;
-  scheduledFor?: Date;
-  format: 'pdf' | 'csv' | 'excel' | 'json';
-  size?: string;
-  downloadUrl?: string;
-  filters: {
-    dateRange: {
-      start: Date;
-      end: Date;
-    };
-    departments?: string[];
-    doctors?: string[];
-    patients?: string[];
-    conditions?: string[];
-  };
-  generatedBy: string;
-  parameters: Record<string, any>;
-}
-
-interface ReportTemplate {
-  id: string;
   name: string;
-  description: string;
-  type: Report['type'];
-  icon: React.ReactNode;
-  defaultFilters: Partial<Report['filters']>;
-  parameters: {
-    name: string;
-    type: 'text' | 'number' | 'date' | 'select' | 'multiselect';
-    options?: string[];
-    required: boolean;
-    description: string;
-  }[];
+  type: 'clinical' | 'quality' | 'financial' | 'research' | 'regulatory';
+  status: 'generating' | 'ready' | 'scheduled';
+  createdAt: string;
+  format: 'pdf' | 'csv' | 'excel' | 'json';
+  schedule?: string;
 }
 
-const reportTemplates: ReportTemplate[] = [
-  {
-    id: 'patient-outcomes',
-    name: 'Patient Outcomes Analysis',
-    description: 'Comprehensive analysis of patient treatment outcomes and recovery metrics',
-    type: 'clinical',
-    icon: <TrendingUp className="w-5 h-5" />,
-    defaultFilters: {
-      dateRange: {
-        start: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000),
-        end: new Date()
-      }
-    },
-    parameters: [
-      {
-        name: 'outcomeMetrics',
-        type: 'multiselect',
-        options: ['Recovery Time', 'Complication Rate', 'Patient Satisfaction', 'Readmission Rate'],
-        required: true,
-        description: 'Select outcome metrics to include'
-      },
-      {
-        name: 'groupBy',
-        type: 'select',
-        options: ['Department', 'Doctor', 'Condition', 'Treatment'],
-        required: false,
-        description: 'Group results by'
-      }
-    ]
-  },
-  {
-    id: 'quality-metrics',
-    name: 'Quality Metrics Dashboard',
-    description: 'Key performance indicators for quality of care and patient safety',
-    type: 'quality',
-    icon: <BarChart3 className="w-5 h-5" />,
-    defaultFilters: {
-      dateRange: {
-        start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-        end: new Date()
-      }
-    },
-    parameters: [
-      {
-        name: 'kpiCategory',
-        type: 'select',
-        options: ['Patient Safety', 'Clinical Excellence', 'Operational Efficiency', 'Patient Experience'],
-        required: true,
-        description: 'KPI category to analyze'
-      },
-      {
-        name: 'comparisonPeriod',
-        type: 'select',
-        options: ['Previous Month', 'Previous Quarter', 'Previous Year', 'Benchmark'],
-        required: false,
-        description: 'Compare against'
-      }
-    ]
-  },
-  {
-    id: 'financial-summary',
-    name: 'Financial Summary Report',
-    description: 'Revenue, expenses, and profitability analysis by department and service',
-    type: 'financial',
-    icon: <PieChart className="w-5 h-5" />,
-    defaultFilters: {
-      dateRange: {
-        start: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000),
-        end: new Date()
-      }
-    },
-    parameters: [
-      {
-        name: 'financialMetrics',
-        type: 'multiselect',
-        options: ['Revenue', 'Expenses', 'Profit Margin', 'Cost per Patient', 'Revenue per Visit'],
-        required: true,
-        description: 'Financial metrics to include'
-      },
-      {
-        name: 'breakdownBy',
-        type: 'select',
-        options: ['Department', 'Service', 'Insurance Type', 'Patient Type'],
-        required: false,
-        description: 'Break down results by'
-      }
-    ]
-  },
-  {
-    id: 'research-dataset',
-    name: 'Research Dataset Export',
-    description: 'Anonymized dataset for research purposes with configurable parameters',
-    type: 'research',
-    icon: <Activity className="w-5 h-5" />,
-    defaultFilters: {
-      dateRange: {
-        start: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000),
-        end: new Date()
-      }
-    },
-    parameters: [
-      {
-        name: 'dataFields',
-        type: 'multiselect',
-        options: ['Demographics', 'Diagnoses', 'Treatments', 'Outcomes', 'Medications', 'Lab Results'],
-        required: true,
-        description: 'Data fields to include'
-      },
-      {
-        name: 'anonymizationLevel',
-        type: 'select',
-        options: ['Full Anonymization', 'Partial Anonymization', 'No Anonymization'],
-        required: true,
-        description: 'Anonymization level for patient data'
-      }
-    ]
-  },
-  {
-    id: 'compliance-report',
-    name: 'Regulatory Compliance Report',
-    description: 'Compliance status for healthcare regulations and quality standards',
-    type: 'regulatory',
-    icon: <CheckCircle className="w-5 h-5" />,
-    defaultFilters: {
-      dateRange: {
-        start: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000),
-        end: new Date()
-      }
-    },
-    parameters: [
-      {
-        name: 'regulations',
-        type: 'multiselect',
-        options: ['HIPAA', 'FDA', 'Joint Commission', 'State Regulations', 'Internal Policies'],
-        required: true,
-        description: 'Regulations to check compliance for'
-      },
-      {
-        name: 'severityLevel',
-        type: 'select',
-        options: ['All Issues', 'High Priority Only', 'Critical Only'],
-        required: false,
-        description: 'Include issues of specific severity'
-      }
-    ]
-  }
-];
-
-export const ReportingSystem: React.FC = () => {
-  const [reports, setReports] = useState<Report[]>([]);
-  const [filteredReports, setFilteredReports] = useState<Report[]>([]);
-  const [selectedTemplate, setSelectedTemplate] = useState<ReportTemplate | null>(null);
-  const [showNewReportForm, setShowNewReportForm] = useState(false);
-  const [filters, setFilters] = useState({
-    type: 'all' as Report['type'] | 'all',
-    status: 'all' as Report['status'] | 'all',
-    search: ''
-  });
-  const [isLoading, setIsLoading] = useState(true);
-  const [generatingReports, setGeneratingReports] = useState<Set<string>>(new Set());
-
-  // New report form state
-  const [newReport, setNewReport] = useState({
-    title: '',
-    description: '',
-    templateId: '',
-    format: 'pdf' as Report['format'],
-    scheduledFor: '',
-    parameters: {} as Record<string, any>,
-    filters: {
-      dateRange: {
-        start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-        end: new Date()
-      },
-      departments: [] as string[],
-      doctors: [] as string[],
-      patients: [] as string[],
-      conditions: [] as string[]
-    }
-  });
-
-  useEffect(() => {
-    loadReports();
-  }, []);
-
-  useEffect(() => {
-    applyFilters();
-  }, [reports, filters]);
-
-  const loadReports = async () => {
-    try {
-      setIsLoading(true);
-      const data = await analyticsService.getReports();
-      setReports(data);
-    } catch (error) {
-      console.error('Error loading reports:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const applyFilters = () => {
-    let filtered = reports;
-
-    if (filters.type !== 'all') {
-      filtered = filtered.filter(r => r.type === filters.type);
-    }
-
-    if (filters.status !== 'all') {
-      filtered = filtered.filter(r => r.status === filters.status);
-    }
-
-    if (filters.search) {
-      const searchLower = filters.search.toLowerCase();
-      filtered = filtered.filter(r => 
-        r.title.toLowerCase().includes(searchLower) ||
-        r.description.toLowerCase().includes(searchLower)
-      );
-    }
-
-    setFilteredReports(filtered.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()));
-  };
-
-  const generateReport = async (template: ReportTemplate) => {
-    try {
-      setGeneratingReports(prev => new Set(prev).add(template.id));
-      
-      const reportData = {
-        title: newReport.title || template.name,
-        description: newReport.description || template.description,
-        templateId: template.id,
-        type: template.type,
-        format: newReport.format,
-        filters: newReport.filters,
-        parameters: newReport.parameters,
-        scheduledFor: newReport.scheduledFor ? new Date(newReport.scheduledFor) : undefined
-      };
-
-      const result = await analyticsService.generateReport(reportData);
-      
-      if (result.success) {
-        await loadReports();
-        setShowNewReportForm(false);
-        resetNewReportForm();
-      }
-    } catch (error) {
-      console.error('Error generating report:', error);
-    } finally {
-      setGeneratingReports(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(template.id);
-        return newSet;
-      });
-    }
-  };
-
-  const downloadReport = async (reportId: string) => {
-    try {
-      const downloadUrl = await analyticsService.getReportDownloadUrl(reportId);
-      window.open(downloadUrl, '_blank');
-    } catch (error) {
-      console.error('Error downloading report:', error);
-    }
-  };
-
-  const deleteReport = async (reportId: string) => {
-    try {
-      await analyticsService.deleteReport(reportId);
-      setReports(prev => prev.filter(r => r.id !== reportId));
-    } catch (error) {
-      console.error('Error deleting report:', error);
-    }
-  };
-
-  const scheduleReport = async () => {
-    if (!selectedTemplate) return;
-
-    try {
-      setGeneratingReports(prev => new Set(prev).add(selectedTemplate.id));
-      
-      const scheduleData = {
-        templateId: selectedTemplate.id,
-        schedule: newReport.scheduledFor,
-        filters: newReport.filters,
-        parameters: newReport.parameters,
-        format: newReport.format
-      };
-
-      await analyticsService.scheduleReport(scheduleData);
-      await loadReports();
-      setShowNewReportForm(false);
-      resetNewReportForm();
-    } catch (error) {
-      console.error('Error scheduling report:', error);
-    } finally {
-      setGeneratingReports(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(selectedTemplate.id);
-        return newSet;
-      });
-    }
-  };
-
-  const resetNewReportForm = () => {
-    setNewReport({
-      title: '',
-      description: '',
-      templateId: '',
+export default function ReportingSystem({ user }: ReportingSystemProps) {
+  const navigate = useNavigate();
+  const [selectedReportType, setSelectedReportType] = useState<string>('all');
+  const [reports, setReports] = useState<Report[]>([
+    {
+      id: '1',
+      name: 'Monthly Clinical Summary',
+      type: 'clinical',
+      status: 'ready',
+      createdAt: '2025-11-05T10:00:00Z',
       format: 'pdf',
-      scheduledFor: '',
-      parameters: {},
-      filters: {
-        dateRange: {
-          start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-          end: new Date()
-        },
-        departments: [],
-        doctors: [],
-        patients: [],
-        conditions: []
-      }
-    });
-    setSelectedTemplate(null);
+      schedule: 'monthly',
+    },
+    {
+      id: '2',
+      name: 'Quality Measures Q4 2025',
+      type: 'quality',
+      status: 'ready',
+      createdAt: '2025-11-04T15:30:00Z',
+      format: 'excel',
+    },
+    {
+      id: '3',
+      name: 'Patient Outcomes Analysis',
+      type: 'research',
+      status: 'generating',
+      createdAt: '2025-11-06T00:30:00Z',
+      format: 'csv',
+    },
+  ]);
+
+  const reportTypes = [
+    { value: 'all', label: 'All Reports', icon: FileText, color: 'indigo' },
+    { value: 'clinical', label: 'Clinical Summary', icon: Activity, color: 'blue' },
+    { value: 'quality', label: 'Quality Measures', icon: TrendingUp, color: 'green' },
+    { value: 'financial', label: 'Financial Analysis', icon: BarChart3, color: 'purple' },
+    { value: 'research', label: 'Research Data', icon: Users, color: 'orange' },
+    { value: 'regulatory', label: 'Regulatory Compliance', icon: FileText, color: 'red' },
+  ];
+
+  const generateReport = (type: string) => {
+    const newReport: Report = {
+      id: Date.now().toString(),
+      name: `${reportTypes.find(t => t.value === type)?.label || 'New Report'} - ${new Date().toLocaleDateString()}`,
+      type: type as any,
+      status: 'generating',
+      createdAt: new Date().toISOString(),
+      format: 'pdf',
+    };
+
+    setReports([newReport, ...reports]);
+
+    // Simulate generation
+    setTimeout(() => {
+      setReports(prev =>
+        prev.map(r => r.id === newReport.id ? { ...r, status: 'ready' as const } : r)
+      );
+    }, 3000);
   };
 
-  const getStatusIcon = (status: Report['status']) => {
+  const exportClinicalSummary = () => {
+    const summary = analyticsService.getSummaryStatistics();
+    const qualityMetrics = analyticsService.getClinicalQualityMetrics();
+    const treatments = analyticsService.getTreatmentEfficacy();
+
+    const reportData = {
+      reportTitle: 'Clinical Summary Report',
+      generatedDate: new Date().toISOString(),
+      generatedBy: user?.full_name || user?.email,
+      summary,
+      qualityMetrics,
+      treatments,
+    };
+
+    const dataStr = JSON.stringify(reportData, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `clinical-summary-${new Date().toISOString().split('T')[0]}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportQualityMeasures = () => {
+    const qualityMetrics = analyticsService.getClinicalQualityMetrics();
+    const complianceMetrics = analyticsService.getComplianceMetrics();
+
+    const csvHeaders = ['Metric', 'Current', 'Target', 'Benchmark', 'Trend', 'Category'];
+    const csvRows = qualityMetrics.map(m => [
+      m.metric,
+      m.current.toString(),
+      m.target.toString(),
+      m.benchmark.toString(),
+      m.trend,
+      m.category,
+    ]);
+
+    const csvContent = [
+      csvHeaders.join(','),
+      ...csvRows.map(row => row.join(',')),
+      '',
+      'Compliance Metrics',
+      'Measure,Compliance %,Target %,Eligible,Compliant',
+      ...complianceMetrics.map(m => [
+        m.measure,
+        m.compliance.toString(),
+        m.target.toString(),
+        m.eligible.toString(),
+        m.compliant.toString(),
+      ].join(',')),
+    ].join('\n');
+
+    const dataBlob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `quality-measures-${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportPatientOutcomes = () => {
+    const outcomes = analyticsService.getPatientOutcomes();
+
+    const csvHeaders = ['Patient ID', 'Patient Name', 'Condition', 'Treatment Start', 'Status', 'Quality of Life', 'Symptom Severity', 'Adherence Rate', 'Adverse Events', 'Cost of Care'];
+    const csvRows = outcomes.map(o => [
+      o.patientId,
+      o.patientName,
+      o.condition,
+      o.treatmentStart,
+      o.currentStatus,
+      o.qualityOfLife.toString(),
+      o.symptomSeverity.toString(),
+      o.adherenceRate.toString(),
+      o.adverseEvents.toString(),
+      o.costOfCare.toString(),
+    ]);
+
+    const csvContent = [
+      csvHeaders.join(','),
+      ...csvRows.map(row => row.join(',')),
+    ].join('\n');
+
+    const dataBlob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `patient-outcomes-${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportTreatmentEfficacy = () => {
+    const treatments = analyticsService.getTreatmentEfficacy();
+
+    const csvHeaders = ['Treatment', 'Condition', 'Patients', 'Success Rate %', 'Avg Response Days', 'Adverse Event Rate %', 'Cost per Patient', 'Evidence Level', 'QoL Improvement %'];
+    const csvRows = treatments.map(t => [
+      t.treatmentName,
+      t.condition,
+      t.patientsCount.toString(),
+      t.successRate.toString(),
+      t.averageResponseTime.toString(),
+      t.adverseEventRate.toString(),
+      t.costPerPatient.toString(),
+      t.evidenceLevel,
+      t.qualityImprovement.toString(),
+    ]);
+
+    const csvContent = [
+      csvHeaders.join(','),
+      ...csvRows.map(row => row.join(',')),
+    ].join('\n');
+
+    const dataBlob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `treatment-efficacy-${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportPopulationHealth = () => {
+    const population = analyticsService.getPopulationMetrics();
+
+    const csvHeaders = ['Condition', 'Prevalence per 1000', 'Incidence per 1000/yr', 'Average Age', 'Male %', 'Female %', 'Treatment Coverage %', 'Outcome Success %'];
+    const csvRows = population.map(p => [
+      p.condition,
+      p.prevalence.toString(),
+      p.incidence.toString(),
+      p.averageAge.toString(),
+      p.genderRatio.male.toString(),
+      p.genderRatio.female.toString(),
+      p.treatmentCoverage.toString(),
+      p.outcomeSuccess.toString(),
+    ]);
+
+    const csvContent = [
+      csvHeaders.join(','),
+      ...csvRows.map(row => row.join(',')),
+    ].join('\n');
+
+    const dataBlob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `population-health-${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const filteredReports = selectedReportType === 'all'
+    ? reports
+    : reports.filter(r => r.type === selectedReportType);
+
+  const getStatusColor = (status: string) => {
     switch (status) {
-      case 'completed':
-        return <CheckCircle className="w-4 h-4 text-green-500" />;
-      case 'generating':
-        return <Clock className="w-4 h-4 text-yellow-500" />;
-      case 'failed':
-        return <AlertCircle className="w-4 h-4 text-red-500" />;
-      case 'scheduled':
-        return <Calendar className="w-4 h-4 text-blue-500" />;
-      default:
-        return <FileText className="w-4 h-4 text-gray-500" />;
+      case 'ready': return 'bg-green-100 text-green-700';
+      case 'generating': return 'bg-yellow-100 text-yellow-700';
+      case 'scheduled': return 'bg-blue-100 text-blue-700';
+      default: return 'bg-gray-100 text-gray-700';
     }
   };
 
-  const getStatusColor = (status: Report['status']) => {
-    switch (status) {
-      case 'completed':
-        return 'bg-green-100 text-green-800';
-      case 'generating':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'failed':
-        return 'bg-red-100 text-red-800';
-      case 'scheduled':
-        return 'bg-blue-100 text-blue-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
+  const getTypeColor = (type: string) => {
+    const typeConfig = reportTypes.find(t => t.value === type);
+    return typeConfig ? `text-${typeConfig.color}-600` : 'text-gray-600';
   };
-
-  const getTypeColor = (type: Report['type']) => {
-    switch (type) {
-      case 'clinical':
-        return 'bg-blue-100 text-blue-800';
-      case 'quality':
-        return 'bg-green-100 text-green-800';
-      case 'financial':
-        return 'bg-purple-100 text-purple-800';
-      case 'research':
-        return 'bg-orange-100 text-orange-800';
-      case 'regulatory':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
 
   return (
-    <div className="max-w-7xl mx-auto p-6 space-y-6">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-3">
-          <FileText className="w-6 h-6 text-blue-600" />
-          <h1 className="text-2xl font-bold text-gray-900">Reporting System</h1>
-        </div>
-        <button
-          onClick={() => setShowNewReportForm(true)}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Generate Report</span>
-        </button>
-      </div>
-
-      {/* Filters */}
-      <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-4">
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search reports..."
-              value={filters.search}
-              onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-          <div className="flex items-center space-x-2">
-            <Filter className="w-4 h-4 text-gray-500" />
-            <select
-              value={filters.type}
-              onChange={(e) => setFilters(prev => ({ ...prev, type: e.target.value as any }))}
-              className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="all">All Types</option>
-              <option value="clinical">Clinical</option>
-              <option value="quality">Quality</option>
-              <option value="financial">Financial</option>
-              <option value="research">Research</option>
-              <option value="regulatory">Regulatory</option>
-            </select>
-            <select
-              value={filters.status}
-              onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value as any }))}
-              className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="all">All Status</option>
-              <option value="draft">Draft</option>
-              <option value="generating">Generating</option>
-              <option value="completed">Completed</option>
-              <option value="failed">Failed</option>
-              <option value="scheduled">Scheduled</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
-      {/* New Report Form */}
-      {showNewReportForm && (
-        <div className="bg-white border border-gray-200 rounded-lg p-6 space-y-6">
+      <header className="glass-nav sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-900">Generate New Report</h3>
-            <button
-              onClick={() => {
-                setShowNewReportForm(false);
-                resetNewReportForm();
-              }}
-              className="text-gray-400 hover:text-gray-600"
-            >
-              ×
-            </button>
-          </div>
-
-          {!selectedTemplate ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {reportTemplates.map((template) => (
-                <div
-                  key={template.id}
-                  onClick={() => setSelectedTemplate(template)}
-                  className="border border-gray-200 rounded-lg p-4 cursor-pointer hover:border-blue-500 hover:shadow-sm transition-all"
-                >
-                  <div className="flex items-center space-x-3 mb-2">
-                    <div className="p-2 bg-blue-100 rounded-lg text-blue-600">
-                      {template.icon}
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-gray-900">{template.name}</h4>
-                      <span className={`text-xs px-2 py-1 rounded-full ${getTypeColor(template.type)}`}>
-                        {template.type}
-                      </span>
-                    </div>
-                  </div>
-                  <p className="text-sm text-gray-600">{template.description}</p>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="space-y-6">
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-blue-100 rounded-lg text-blue-600">
-                  {selectedTemplate.icon}
+            <div className="flex items-center">
+              <button
+                onClick={() => navigate('/analytics')}
+                className="glass-card-subtle p-2 rounded-xl mr-4 hover:scale-110 transition-transform"
+              >
+                <ArrowLeft className="h-6 w-6 text-gray-700" />
+              </button>
+              <div className="flex items-center gap-3">
+                <div className="glass-card-strong p-3 rounded-2xl">
+                  <FileText className="h-8 w-8 text-indigo-600" />
                 </div>
                 <div>
-                  <h4 className="font-medium text-gray-900">{selectedTemplate.name}</h4>
-                  <p className="text-sm text-gray-600">{selectedTemplate.description}</p>
+                  <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                    Reporting System
+                  </h1>
+                  <p className="text-sm text-gray-600">
+                    Generate, schedule, and export comprehensive reports
+                  </p>
                 </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <h5 className="font-medium text-gray-900">Report Details</h5>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Report Title
-                    </label>
-                    <input
-                      type="text"
-                      value={newReport.title}
-                      onChange={(e) => setNewReport(prev => ({ ...prev, title: e.target.value }))}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder={selectedTemplate.name}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Description
-                    </label>
-                    <textarea
-                      value={newReport.description}
-                      onChange={(e) => setNewReport(prev => ({ ...prev, description: e.target.value }))}
-                      rows={3}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder={selectedTemplate.description}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Format
-                    </label>
-                    <select
-                      value={newReport.format}
-                      onChange={(e) => setNewReport(prev => ({ ...prev, format: e.target.value as Report['format'] }))}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    >
-                      <option value="pdf">PDF</option>
-                      <option value="csv">CSV</option>
-                      <option value="excel">Excel</option>
-                      <option value="json">JSON</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <h5 className="font-medium text-gray-900">Date Range</h5>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Start Date
-                      </label>
-                      <input
-                        type="date"
-                        value={newReport.filters.dateRange.start.toISOString().split('T')[0]}
-                        onChange={(e) => setNewReport(prev => ({
-                          ...prev,
-                          filters: {
-                            ...prev.filters,
-                            dateRange: {
-                              ...prev.filters.dateRange,
-                              start: new Date(e.target.value)
-                            }
-                          }
-                        }))}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        End Date
-                      </label>
-                      <input
-                        type="date"
-                        value={newReport.filters.dateRange.end.toISOString().split('T')[0]}
-                        onChange={(e) => setNewReport(prev => ({
-                          ...prev,
-                          filters: {
-                            ...prev.filters,
-                            dateRange: {
-                              ...prev.filters.dateRange,
-                              end: new Date(e.target.value)
-                            }
-                          }
-                        }))}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Schedule For (Optional)
-                    </label>
-                    <input
-                      type="datetime-local"
-                      value={newReport.scheduledFor}
-                      onChange={(e) => setNewReport(prev => ({ ...prev, scheduledFor: e.target.value }))}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex justify-end space-x-3">
-                <button
-                  onClick={() => setSelectedTemplate(null)}
-                  className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
-                >
-                  Back
-                </button>
-                {newReport.scheduledFor ? (
-                  <button
-                    onClick={scheduleReport}
-                    disabled={generatingReports.has(selectedTemplate.id)}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center space-x-2"
-                  >
-                    {generatingReports.has(selectedTemplate.id) ? (
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    ) : (
-                      <Calendar className="w-4 h-4" />
-                    )}
-                    <span>Schedule Report</span>
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => generateReport(selectedTemplate)}
-                    disabled={generatingReports.has(selectedTemplate.id)}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center space-x-2"
-                  >
-                    {generatingReports.has(selectedTemplate.id) ? (
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    ) : (
-                      <FileText className="w-4 h-4" />
-                    )}
-                    <span>Generate Now</span>
-                  </button>
-                )}
               </div>
             </div>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        {/* Quick Export Section */}
+        <div className="glass-card p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Data Export</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            <button
+              onClick={exportClinicalSummary}
+              className="glass-card-subtle p-4 rounded-xl hover:glass-card transition-all text-left group"
+            >
+              <Activity className="h-6 w-6 text-blue-600 mb-2 group-hover:scale-110 transition-transform" />
+              <p className="font-semibold text-gray-900 text-sm">Clinical Summary</p>
+              <p className="text-xs text-gray-600 mt-1">JSON format</p>
+            </button>
+
+            <button
+              onClick={exportQualityMeasures}
+              className="glass-card-subtle p-4 rounded-xl hover:glass-card transition-all text-left group"
+            >
+              <TrendingUp className="h-6 w-6 text-green-600 mb-2 group-hover:scale-110 transition-transform" />
+              <p className="font-semibold text-gray-900 text-sm">Quality Measures</p>
+              <p className="text-xs text-gray-600 mt-1">CSV format</p>
+            </button>
+
+            <button
+              onClick={exportPatientOutcomes}
+              className="glass-card-subtle p-4 rounded-xl hover:glass-card transition-all text-left group"
+            >
+              <Users className="h-6 w-6 text-purple-600 mb-2 group-hover:scale-110 transition-transform" />
+              <p className="font-semibold text-gray-900 text-sm">Patient Outcomes</p>
+              <p className="text-xs text-gray-600 mt-1">CSV format</p>
+            </button>
+
+            <button
+              onClick={exportTreatmentEfficacy}
+              className="glass-card-subtle p-4 rounded-xl hover:glass-card transition-all text-left group"
+            >
+              <BarChart3 className="h-6 w-6 text-orange-600 mb-2 group-hover:scale-110 transition-transform" />
+              <p className="font-semibold text-gray-900 text-sm">Treatment Efficacy</p>
+              <p className="text-xs text-gray-600 mt-1">CSV format</p>
+            </button>
+
+            <button
+              onClick={exportPopulationHealth}
+              className="glass-card-subtle p-4 rounded-xl hover:glass-card transition-all text-left group"
+            >
+              <Activity className="h-6 w-6 text-red-600 mb-2 group-hover:scale-110 transition-transform" />
+              <p className="font-semibold text-gray-900 text-sm">Population Health</p>
+              <p className="text-xs text-gray-600 mt-1">CSV format</p>
+            </button>
+          </div>
+        </div>
+
+        {/* Report Generation */}
+        <div className="glass-card p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Generate New Report</h3>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            {reportTypes.filter(t => t.value !== 'all').map((type) => {
+              const Icon = type.icon;
+              return (
+                <button
+                  key={type.value}
+                  onClick={() => generateReport(type.value)}
+                  className="glass-card-subtle p-4 rounded-xl hover:glass-card transition-all text-center group"
+                >
+                  <Icon className={`h-6 w-6 text-${type.color}-600 mx-auto mb-2 group-hover:scale-110 transition-transform`} />
+                  <p className="text-sm font-medium text-gray-900">{type.label}</p>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Report Filter */}
+        <div className="flex gap-2 overflow-x-auto pb-2">
+          {reportTypes.map((type) => {
+            const Icon = type.icon;
+            return (
+              <button
+                key={type.value}
+                onClick={() => setSelectedReportType(type.value)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium whitespace-nowrap transition-all ${
+                  selectedReportType === type.value
+                    ? 'glass-card-strong text-indigo-600'
+                    : 'glass-card-subtle text-gray-600 hover:glass-card'
+                }`}
+              >
+                <Icon className="h-4 w-4" />
+                {type.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Reports List */}
+        <div className="space-y-4">
+          {filteredReports.length === 0 ? (
+            <div className="glass-card p-12 text-center">
+              <FileText className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">No Reports Found</h3>
+              <p className="text-gray-600">
+                Generate a new report to get started
+              </p>
+            </div>
+          ) : (
+            filteredReports.map((report) => (
+              <div key={report.id} className="glass-card p-6 hover-lift">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-2">
+                      <h3 className="text-lg font-semibold text-gray-900">{report.name}</h3>
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(report.status)}`}>
+                        {report.status.charAt(0).toUpperCase() + report.status.slice(1)}
+                      </span>
+                      <span className="px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                        {report.format.toUpperCase()}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-4 text-sm text-gray-600">
+                      <span className="flex items-center gap-1">
+                        <Calendar className="h-4 w-4" />
+                        {new Date(report.createdAt).toLocaleString()}
+                      </span>
+                      {report.schedule && (
+                        <span className="flex items-center gap-1">
+                          <Clock className="h-4 w-4" />
+                          Scheduled: {report.schedule}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    {report.status === 'ready' && (
+                      <>
+                        <button className="glass-button-primary px-4 py-2 flex items-center gap-2">
+                          <Download className="h-4 w-4" />
+                          Download
+                        </button>
+                        <button className="glass-button px-4 py-2 flex items-center gap-2">
+                          <Send className="h-4 w-4" />
+                          Email
+                        </button>
+                      </>
+                    )}
+                    {report.status === 'generating' && (
+                      <div className="flex items-center gap-2 px-4 py-2 text-gray-600">
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-gray-300 border-t-indigo-600"></div>
+                        <span className="text-sm">Generating...</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))
           )}
         </div>
-      )}
-
-      {/* Reports List */}
-      <div className="space-y-4">
-        {filteredReports.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">
-            <FileText className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-            <p>No reports found</p>
-          </div>
-        ) : (
-          filteredReports.map((report) => (
-            <div key={report.id} className="bg-white border border-gray-200 rounded-lg p-6">
-              <div className="flex items-start justify-between">
-                <div className="flex items-start space-x-4 flex-1">
-                  <div className="p-2 bg-gray-100 rounded-lg">
-                    {getStatusIcon(report.status)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center space-x-2 mb-1">
-                      <h4 className="text-lg font-medium text-gray-900">{report.title}</h4>
-                      <span className={`px-2 py-1 text-xs rounded-full ${getTypeColor(report.type)}`}>
-                        {report.type}
-                      </span>
-                      <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(report.status)}`}>
-                        {report.status}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-600 mb-2">{report.description}</p>
-                    <div className="flex items-center space-x-4 text-xs text-gray-500">
-                      <span>Created: {report.createdAt.toLocaleDateString()}</span>
-                      {report.completedAt && (
-                        <span>Completed: {report.completedAt.toLocaleDateString()}</span>
-                      )}
-                      {report.scheduledFor && (
-                        <span>Scheduled: {report.scheduledFor.toLocaleDateString()}</span>
-                      )}
-                      <span>Format: {report.format.toUpperCase()}</span>
-                      {report.size && <span>Size: {report.size}</span>}
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2 ml-4">
-                  {report.status === 'completed' && report.downloadUrl && (
-                    <button
-                      onClick={() => downloadReport(report.id)}
-                      className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors"
-                      title="Download"
-                    >
-                      <Download className="w-4 h-4" />
-                    </button>
-                  )}
-                  <button className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded-lg transition-colors" title="View">
-                    <Eye className="w-4 h-4" />
-                  </button>
-                  <button className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded-lg transition-colors" title="Edit">
-                    <Edit className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => deleteReport(report.id)}
-                    className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors"
-                    title="Delete"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
+      </main>
     </div>
   );
-};
+}

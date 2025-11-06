@@ -1,0 +1,10 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const timeline_controller_1 = require("../controllers/timeline.controller");
+const auth_middleware_1 = require("../middleware/auth.middleware");
+const router = (0, express_1.Router)();
+router.use(auth_middleware_1.authenticate);
+router.get('/patient/:patientId', timeline_controller_1.timelineController.listForPatient.bind(timeline_controller_1.timelineController));
+router.post('/', timeline_controller_1.timelineController.create.bind(timeline_controller_1.timelineController));
+exports.default = router;

@@ -1,442 +1,310 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, ScatterChart, Scatter } from 'recharts';
-import { useToast } from '@/hooks/use-toast';
-import { analyticsService } from '@/services/analyticsService';
-import type { TreatmentOutcome, CostAnalysis, AdherenceMetrics, SuccessRate } from '@/types';
-import { TrendingUp, DollarSign, Users, Target, Calendar, Award } from 'lucide-react';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+  ArrowLeft, Target, DollarSign, Clock, AlertCircle,
+  TrendingUp, Award, Users
+} from 'lucide-react';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid,
+  Tooltip, Legend, ResponsiveContainer, ScatterChart, Scatter,
+  ZAxis
+} from 'recharts';
+import { analyticsService } from '../services/analyticsService';
 
-interface TreatmentEfficacyData {
-  treatmentOutcomes: TreatmentOutcome[];
-  costAnalysis: CostAnalysis[];
-  adherenceMetrics: AdherenceMetrics[];
-  successRates: SuccessRate[];
+interface TreatmentEfficacyCenterProps {
+  user: any;
 }
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
+export default function TreatmentEfficacyCenter({ user }: TreatmentEfficacyCenterProps) {
+  const navigate = useNavigate();
+  const [selectedCondition, setSelectedCondition] = useState<string>('all');
 
-export default function TreatmentEfficacyCenter() {
-  const [data, setData] = useState<TreatmentEfficacyData | null>(null);
-  const [selectedTimeFrame, setSelectedTimeFrame] = useState<string>('6months');
-  const [selectedTreatment, setSelectedTreatment] = useState<string>('');
-  const [isLoading, setIsLoading] = useState(true);
-  const { toast } = useToast();
+  const treatments = analyticsService.getTreatmentEfficacy();
+  const filteredTreatments = selectedCondition === 'all'
+    ? treatments
+    : treatments.filter(t => t.condition === selectedCondition);
 
-  useEffect(() => {
-    loadEfficacyData();
-  }, [selectedTimeFrame]);
+  const conditions = Array.from(new Set(treatments.map(t => t.condition)));
 
-  const loadEfficacyData = async () => {
-    try {
-      setIsLoading(true);
-      const efficacyData = await analyticsService.getTreatmentEfficacy(selectedTimeFrame);
-      setData(efficacyData);
-      
-      // Set default treatment selection if available
-      if (efficacyData.successRates && efficacyData.successRates.length > 0) {
-        setSelectedTreatment(efficacyData.successRates[0].treatment);
-      }
-    } catch (error) {
-      console.error('Failed to load treatment efficacy data:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load treatment efficacy data',
-        variant: 'destructive'
-      });
-    } finally {
-      setIsLoading(false);
+  const costEffectivenessData = treatments.map(t => ({
+    name: t.treatmentName.substring(0, 20),
+    successRate: t.successRate,
+    cost: t.costPerPatient / 1000,
+    patients: t.patientsCount,
+  }));
+
+  const getEvidenceLevelColor = (level: string) => {
+    switch (level) {
+      case 'I': return 'bg-green-100 text-green-700';
+      case 'II': return 'bg-blue-100 text-blue-700';
+      case 'III': return 'bg-yellow-100 text-yellow-700';
+      case 'IV': return 'bg-orange-100 text-orange-700';
+      case 'V': return 'bg-red-100 text-red-700';
+      default: return 'bg-gray-100 text-gray-700';
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount);
-  };
-
-  const formatPercentage = (value: number) => {
-    return `${(value * 100).toFixed(1)}%`;
-  };
-
-  const getSuccessRateColor = (rate: number) => {
-    if (rate >= 0.8) return 'text-green-600';
-    if (rate >= 0.6) return 'text-yellow-600';
-    return 'text-red-600';
-  };
-
-  const getSuccessRateBadge = (rate: number) => {
-    if (rate >= 0.8) return 'default';
-    if (rate >= 0.6) return 'secondary';
-    return 'destructive';
-  };
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p>Loading treatment efficacy data...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!data) {
-    return (
-      <div className="container mx-auto py-6">
-        <Card>
-          <CardContent className="text-center py-8">
-            <p className="text-muted-foreground">No treatment efficacy data available</p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   return (
-    <div className="container mx-auto py-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold">Treatment Efficacy Center</h1>
-          <p className="text-muted-foreground mt-2">
-            Analyze treatment outcomes, cost-effectiveness, and success rates
-          </p>
-        </div>
-        <div className="flex space-x-2">
-          <Select value={selectedTimeFrame} onValueChange={setSelectedTimeFrame}>
-            <SelectTrigger className="w-40">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="1month">1 Month</SelectItem>
-              <SelectItem value="3months">3 Months</SelectItem>
-              <SelectItem value="6months">6 Months</SelectItem>
-              <SelectItem value="1year">1 Year</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button onClick={loadEfficacyData} variant="outline">
-            Refresh
-          </Button>
-        </div>
-      </div>
-
-      {/* Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Overall Success Rate</CardTitle>
-            <Target className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {data.successRates.length > 0 
-                ? formatPercentage(data.successRates.reduce((acc, rate) => acc + rate.successRate, 0) / data.successRates.length)
-                : 'N/A'
-              }
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Average across all treatments
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Patients Treated</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {data.treatmentOutcomes.reduce((acc, outcome) => acc + outcome.patientsTreated, 0).toLocaleString()}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              In selected time period
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Average Treatment Cost</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {data.costAnalysis.length > 0
-                ? formatCurrency(data.costAnalysis.reduce((acc, cost) => acc + cost.averageCost, 0) / data.costAnalysis.length)
-                : 'N/A'
-              }
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Per patient
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Treatment Duration</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {data.treatmentOutcomes.length > 0
-                ? Math.round(data.treatmentOutcomes.reduce((acc, outcome) => acc + outcome.averageDuration, 0) / data.treatmentOutcomes.length)
-                : 0
-              }
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Average days
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Tabs defaultValue="outcomes" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="outcomes">Treatment Outcomes</TabsTrigger>
-          <TabsTrigger value="costs">Cost Analysis</TabsTrigger>
-          <TabsTrigger value="adherence">Adherence</TabsTrigger>
-          <TabsTrigger value="success">Success Rates</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="outcomes" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Treatment Outcomes Overview</CardTitle>
-              <CardDescription>Success rates and patient counts by treatment type</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={data.treatmentOutcomes}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="treatment" />
-                    <YAxis />
-                    <Tooltip 
-                      formatter={(value, name) => {
-                        if (name === 'successRate') {
-                          return [formatPercentage(value as number), 'Success Rate'];
-                        }
-                        return [value, name];
-                      }}
-                    />
-                    <Bar dataKey="successRate" fill="#8884d8" name="successRate" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-
-          <div className="grid gap-4">
-            {data.treatmentOutcomes.map((outcome, index) => (
-              <Card key={index}>
-                <CardContent className="pt-6">
-                  <div className="flex justify-between items-start">
-                    <div className="space-y-2">
-                      <h3 className="font-semibold text-lg">{outcome.treatment}</h3>
-                      <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                        <span>Patients: {outcome.patientsTreated.toLocaleString()}</span>
-                        <span>Success Rate: {formatPercentage(outcome.successRate)}</span>
-                        <span>Avg Duration: {outcome.averageDuration} days</span>
-                      </div>
-                    </div>
-                    <Badge variant={getSuccessRateBadge(outcome.successRate)} className="text-sm">
-                      {formatPercentage(outcome.successRate)}
-                    </Badge>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="costs" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Cost Analysis</CardTitle>
-              <CardDescription>Treatment costs and cost-effectiveness metrics</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <ScatterChart data={data.costAnalysis}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis 
-                      dataKey="averageCost" 
-                      name="Average Cost"
-                      tickFormatter={(value) => formatCurrency(value)}
-                    />
-                    <YAxis 
-                      dataKey="costPerSuccess" 
-                      name="Cost per Success"
-                      tickFormatter={(value) => formatCurrency(value)}
-                    />
-                    <Tooltip 
-                      formatter={(value, name) => {
-                        return [formatCurrency(value as number), name];
-                      }}
-                      labelFormatter={(label) => `Treatment: ${label}`}
-                    />
-                    <Scatter dataKey="costPerSuccess" fill="#8884d8" />
-                  </ScatterChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-
-          <div className="grid gap-4">
-            {data.costAnalysis.map((cost, index) => (
-              <Card key={index}>
-                <CardContent className="pt-6">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">Treatment</p>
-                      <p className="font-semibold">{cost.treatment}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">Average Cost</p>
-                      <p className="font-semibold">{formatCurrency(cost.averageCost)}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">Cost per Success</p>
-                      <p className="font-semibold">{formatCurrency(cost.costPerSuccess)}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">ROI</p>
-                      <p className="font-semibold">{formatPercentage(cost.roi)}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="adherence" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Patient Adherence Metrics</CardTitle>
-              <CardDescription>Medication adherence and treatment compliance rates</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={data.adherenceMetrics}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="month" />
-                    <YAxis tickFormatter={(value) => `${(value * 100).toFixed(0)}%`} />
-                    <Tooltip formatter={(value) => [formatPercentage(value as number), 'Adherence Rate']} />
-                    <Line type="monotone" dataKey="adherenceRate" stroke="#8884d8" strokeWidth={2} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-
-          <div className="grid gap-4">
-            {data.adherenceMetrics.map((metric, index) => (
-              <Card key={index}>
-                <CardContent className="pt-6">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">Month</p>
-                      <p className="font-semibold">{metric.month}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">Adherence Rate</p>
-                      <p className={`font-semibold ${getSuccessRateColor(metric.adherenceRate)}`}>
-                        {formatPercentage(metric.adherenceRate)}
-                      </p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">Patients</p>
-                      <p className="font-semibold">{metric.patientsCount.toLocaleString()}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground">Compliance</p>
-                      <p className="font-semibold">{formatPercentage(metric.complianceRate)}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="success" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Success Rate Trends</CardTitle>
-              <CardDescription>Treatment success rates over time</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex space-x-2">
-                  <Select value={selectedTreatment} onValueChange={setSelectedTreatment}>
-                    <SelectTrigger className="w-64">
-                      <SelectValue placeholder="Select treatment" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {data.successRates.map((rate, index) => (
-                        <SelectItem key={index} value={rate.treatment}>
-                          {rate.treatment}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+      {/* Header */}
+      <header className="glass-nav sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <button
+                onClick={() => navigate('/analytics')}
+                className="glass-card-subtle p-2 rounded-xl mr-4 hover:scale-110 transition-transform"
+              >
+                <ArrowLeft className="h-6 w-6 text-gray-700" />
+              </button>
+              <div className="flex items-center gap-3">
+                <div className="glass-card-strong p-3 rounded-2xl">
+                  <Target className="h-8 w-8 text-green-600" />
                 </div>
-                
-                <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={data.successRates.filter(rate => rate.treatment === selectedTreatment)}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="timeframe" />
-                      <YAxis tickFormatter={(value) => `${(value * 100).toFixed(0)}%`} />
-                      <Tooltip formatter={(value) => [formatPercentage(value as number), 'Success Rate']} />
-                      <Line type="monotone" dataKey="successRate" stroke="#82ca9d" strokeWidth={2} />
-                    </LineChart>
-                  </ResponsiveContainer>
+                <div>
+                  <h1 className="text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+                    Treatment Efficacy Center
+                  </h1>
+                  <p className="text-sm text-gray-600">
+                    Comparative effectiveness analysis and optimization
+                  </p>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
+        </div>
+      </header>
 
-          <div className="grid gap-4">
-            {data.successRates
-              .filter(rate => !selectedTreatment || rate.treatment === selectedTreatment)
-              .map((rate, index) => (
-              <Card key={index}>
-                <CardContent className="pt-6">
-                  <div className="flex justify-between items-start">
-                    <div className="space-y-2">
-                      <h3 className="font-semibold text-lg">{rate.treatment}</h3>
-                      <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                        <span>Timeframe: {rate.timeframe}</span>
-                        <span>Success Rate: {formatPercentage(rate.successRate)}</span>
-                        <span>Total Cases: {rate.totalCases.toLocaleString()}</span>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <Badge variant={getSuccessRateBadge(rate.successRate)} className="mb-1">
-                        {formatPercentage(rate.successRate)}
-                      </Badge>
-                      <p className="text-xs text-muted-foreground">
-                        {rate.successfulCases.toLocaleString()} successful
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        {/* Condition Filter */}
+        <div className="glass-card p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Filter by Condition</h3>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setSelectedCondition('all')}
+              className={`px-4 py-2 rounded-xl font-medium transition-all ${
+                selectedCondition === 'all'
+                  ? 'glass-card-strong text-indigo-600'
+                  : 'glass-card-subtle text-gray-600 hover:glass-card'
+              }`}
+            >
+              All Conditions
+            </button>
+            {conditions.map((condition) => (
+              <button
+                key={condition}
+                onClick={() => setSelectedCondition(condition)}
+                className={`px-4 py-2 rounded-xl font-medium transition-all ${
+                  selectedCondition === condition
+                    ? 'glass-card-strong text-indigo-600'
+                    : 'glass-card-subtle text-gray-600 hover:glass-card'
+                }`}
+              >
+                {condition}
+              </button>
             ))}
           </div>
-        </TabsContent>
-      </Tabs>
+        </div>
+
+        {/* Treatment Comparison Cards */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {filteredTreatments.map((treatment) => (
+            <div key={treatment.treatmentName} className="glass-card p-6 hover-lift">
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">{treatment.treatmentName}</h3>
+                  <p className="text-sm text-gray-600">{treatment.condition}</p>
+                </div>
+                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getEvidenceLevelColor(treatment.evidenceLevel)}`}>
+                  Level {treatment.evidenceLevel}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div className="glass-card-subtle p-3 rounded-xl">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Target className="h-4 w-4 text-green-600" />
+                    <p className="text-xs text-gray-600">Success Rate</p>
+                  </div>
+                  <p className="text-2xl font-bold text-gray-900">{treatment.successRate}%</p>
+                </div>
+                <div className="glass-card-subtle p-3 rounded-xl">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Users className="h-4 w-4 text-blue-600" />
+                    <p className="text-xs text-gray-600">Patients</p>
+                  </div>
+                  <p className="text-2xl font-bold text-gray-900">{treatment.patientsCount}</p>
+                </div>
+                <div className="glass-card-subtle p-3 rounded-xl">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Clock className="h-4 w-4 text-purple-600" />
+                    <p className="text-xs text-gray-600">Response Time</p>
+                  </div>
+                  <p className="text-2xl font-bold text-gray-900">{treatment.averageResponseTime}d</p>
+                </div>
+                <div className="glass-card-subtle p-3 rounded-xl">
+                  <div className="flex items-center gap-2 mb-1">
+                    <DollarSign className="h-4 w-4 text-indigo-600" />
+                    <p className="text-xs text-gray-600">Cost/Patient</p>
+                  </div>
+                  <p className="text-2xl font-bold text-gray-900">${(treatment.costPerPatient / 1000).toFixed(1)}k</p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">QoL Improvement:</span>
+                  <span className="font-semibold text-green-600">+{treatment.qualityImprovement}%</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Adverse Event Rate:</span>
+                  <span className="font-semibold text-orange-600">{treatment.adverseEventRate}%</span>
+                </div>
+              </div>
+
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">Overall Efficacy Score</span>
+                  <div className="flex items-center gap-2">
+                    <Award className="h-5 w-5 text-yellow-500" />
+                    <span className="text-lg font-bold text-gray-900">
+                      {((treatment.successRate * 0.4) + (treatment.qualityImprovement * 0.4) + ((100 - treatment.adverseEventRate) * 0.2)).toFixed(0)}/100
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Efficacy Comparison Chart */}
+        <div className="glass-card p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <Target className="h-5 w-5 text-green-600" />
+            Treatment Success Rates Comparison
+          </h3>
+          <ResponsiveContainer width="100%" height={400}>
+            <BarChart data={filteredTreatments}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <XAxis
+                dataKey="treatmentName"
+                stroke="#6b7280"
+                fontSize={11}
+                angle={-15}
+                textAnchor="end"
+                height={100}
+              />
+              <YAxis stroke="#6b7280" fontSize={12} />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                  backdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(229, 231, 235, 0.8)',
+                  borderRadius: '12px',
+                  padding: '12px',
+                }}
+              />
+              <Legend />
+              <Bar dataKey="successRate" fill="#10b981" name="Success Rate (%)" radius={[8, 8, 0, 0]} />
+              <Bar dataKey="qualityImprovement" fill="#6366f1" name="QoL Improvement (%)" radius={[8, 8, 0, 0]} />
+              <Bar dataKey="adverseEventRate" fill="#f59e0b" name="Adverse Events (%)" radius={[8, 8, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Cost-Effectiveness Analysis */}
+        <div className="glass-card p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <DollarSign className="h-5 w-5 text-blue-600" />
+            Cost-Effectiveness Analysis
+          </h3>
+          <ResponsiveContainer width="100%" height={400}>
+            <ScatterChart>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <XAxis 
+                type="number" 
+                dataKey="cost" 
+                name="Cost" 
+                unit="k"
+                stroke="#6b7280"
+                label={{ value: 'Cost per Patient ($k)', position: 'bottom', offset: 0 }}
+              />
+              <YAxis 
+                type="number" 
+                dataKey="successRate" 
+                name="Success Rate"
+                unit="%"
+                stroke="#6b7280"
+                label={{ value: 'Success Rate (%)', angle: -90, position: 'insideLeft' }}
+              />
+              {/* @ts-ignore - Recharts React 18 compatibility */}
+              <ZAxis type="number" dataKey="patients" range={[100, 1000]} name="Patients" />
+              <Tooltip
+                cursor={{ strokeDasharray: '3 3' }}
+                contentStyle={{
+                  backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                  backdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(229, 231, 235, 0.8)',
+                  borderRadius: '12px',
+                }}
+                formatter={(value: any, name: string) => {
+                  if (name === 'Cost') return [`$${value}k`, 'Cost per Patient'];
+                  if (name === 'Success Rate') return [`${value}%`, 'Success Rate'];
+                  return [value, name];
+                }}
+              />
+              {/* @ts-ignore - Recharts React 18 compatibility */}
+              <Scatter name="Treatments" data={costEffectivenessData} fill="#6366f1" />
+            </ScatterChart>
+          </ResponsiveContainer>
+          <div className="mt-4 glass-card-subtle p-4 rounded-xl">
+            <p className="text-sm text-gray-600">
+              <AlertCircle className="h-4 w-4 inline mr-1 text-blue-600" />
+              Bubble size represents number of patients treated. Treatments in the upper-left quadrant (high success, low cost) offer the best value.
+            </p>
+          </div>
+        </div>
+
+        {/* Key Insights */}
+        <div className="glass-card p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Key Clinical Insights</h3>
+          <div className="space-y-3">
+            {filteredTreatments.sort((a, b) => b.successRate - a.successRate)[0] && (
+              <div className="glass-card-subtle p-4 rounded-xl flex items-start gap-3 border-l-4 border-green-500">
+                <Award className="h-5 w-5 text-green-600 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-gray-900">Highest Success Rate</p>
+                  <p className="text-sm text-gray-600">
+                    {filteredTreatments.sort((a, b) => b.successRate - a.successRate)[0].treatmentName} achieves {filteredTreatments.sort((a, b) => b.successRate - a.successRate)[0].successRate}% success rate
+                  </p>
+                </div>
+              </div>
+            )}
+            {filteredTreatments.sort((a, b) => a.costPerPatient - b.costPerPatient)[0] && (
+              <div className="glass-card-subtle p-4 rounded-xl flex items-start gap-3 border-l-4 border-blue-500">
+                <DollarSign className="h-5 w-5 text-blue-600 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-gray-900">Most Cost-Effective</p>
+                  <p className="text-sm text-gray-600">
+                    {filteredTreatments.sort((a, b) => a.costPerPatient - b.costPerPatient)[0].treatmentName} offers excellent value at ${filteredTreatments.sort((a, b) => a.costPerPatient - b.costPerPatient)[0].costPerPatient.toLocaleString()}/patient
+                  </p>
+                </div>
+              </div>
+            )}
+            {filteredTreatments.sort((a, b) => a.averageResponseTime - b.averageResponseTime)[0] && (
+              <div className="glass-card-subtle p-4 rounded-xl flex items-start gap-3 border-l-4 border-purple-500">
+                <Clock className="h-5 w-5 text-purple-600 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-gray-900">Fastest Response Time</p>
+                  <p className="text-sm text-gray-600">
+                    {filteredTreatments.sort((a, b) => a.averageResponseTime - b.averageResponseTime)[0].treatmentName} shows response in {filteredTreatments.sort((a, b) => a.averageResponseTime - b.averageResponseTime)[0].averageResponseTime} days average
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </main>
     </div>
   );
 }
