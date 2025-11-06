@@ -287,7 +287,7 @@ All new features must include:
 
 ## Release Process
 
-1. maintainers cut releases from `main` branch
+1. Maintainers cut releases from `main` branch
 2. Semantic versioning (MAJOR.MINOR.PATCH)
 3. Changelog generated from commit messages
 4. GitHub releases with release notes
