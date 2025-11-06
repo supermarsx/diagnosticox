@@ -48,156 +48,122 @@ export default defineConfig({
     terserOptions: isProd ? {
       compress: {
         drop_console: true, // Remove console.logs in production
-        drop_debugger: true, // Remove debugger statements
+        drop_debugger: true,
         pure_funcs: ['console.log', 'console.info', 'console.debug'],
-        drop_comments: true, // Remove all comments
+      },
+      format: {
+        comments: false, // Remove comments
       },
     } : undefined,
-    sourcemap: isProd ? false : true, // Only generate source maps in dev
+    
+    // Code splitting configuration
     rollupOptions: {
       output: {
-        // Manual chunk splitting for better caching
-        manualChunks: {
-          'react-vendor': ['react', 'react-dom'],
-          'router-vendor': ['react-router-dom'],
-          'radix-vendor': [
-            '@radix-ui/react-accordion',
-            '@radix-ui/react-alert-dialog',
-            '@radix-ui/react-avatar',
-            '@radix-ui/react-dialog',
-            '@radix-ui/react-dropdown-menu',
-            '@radix-ui/react-label',
-            '@radix-ui/react-navigation-menu',
-            '@radix-ui/react-popover',
-            '@radix-ui/react-progress',
-            '@radix-ui/react-select',
-            '@radix-ui/react-separator',
-            '@radix-ui/react-slot',
-            '@radix-ui/react-tabs',
-            '@radix-ui/react-toast',
-            '@radix-ui/react-tooltip'
-          ],
-          'charts-vendor': ['echarts', 'echarts-for-react', 'recharts'],
-          'icons-vendor': ['lucide-react'],
-          'forms-vendor': ['react-hook-form', '@hookform/resolvers', 'zod'],
-          'clinical-services': [
-            './src/services/icdService',
-            './src/services/dsm5Service',
-            './src/services/symptomService',
-            './src/services/vindicatemService',
-            './src/services/fhirService'
-          ],
-          'research-services': [
-            './src/services/pubmedService',
-            './src/services/clinicalTrialsService',
-            './src/services/drugBankService'
-          ],
-          'ai-services': ['./src/services/aiProviderService'],
-          'cache-services': [
-            './src/services/cacheService',
-            './src/services/crawlerService',
-            './src/services/cacheIntegration'
-          ],
-          'clinical-pages': [
-            './src/pages/ICDLookupPage',
-            './src/pages/DSM5AssessmentsPage',
-            './src/pages/SymptomCheckerPage',
-            './src/pages/VindicatemDiagnosisPage',
-            './src/pages/FHIRInteroperabilityPage'
-          ],
-          'analytics-pages': [
-            './src/pages/AnalyticsDashboard',
-            './src/pages/PatientOutcomesTracker',
-            './src/pages/TreatmentEfficacyCenter',
-            './src/pages/PopulationHealthMonitor',
-            './src/pages/CustomDashboardBuilder',
-            './src/pages/ReportingSystem'
-          ],
-          'security-pages': [
-            './src/pages/SecurityCenterHub',
-            './src/pages/MultiFactorAuth',
-            './src/pages/RolePermissionsManager',
-            './src/pages/OrganizationManagement',
-            './src/pages/SecurityAuditLogs',
-            './src/pages/EncryptionManagement',
-            './src/pages/PrivacyControls',
-            './src/pages/AdminPanel'
-          ],
-          'pwa-pages': [
-            './src/pages/NotificationsCenter',
-            './src/pages/RealtimeMonitoringPage',
-            './src/pages/VoiceAssistantPage'
-          ],
-          'visualization-pages': [
-            './src/pages/VisualizationsHub',
-            './src/pages/MedicalTimeline',
-            './src/pages/SymptomHeatmaps',
-            './src/pages/AnatomicalModels',
-            './src/pages/MedicalImaging',
-            './src/pages/CameraIntegration'
-          ],
-          'settings-pages': [
-            './src/pages/FeatureManagementPage',
-            './src/pages/AIProviderSettings',
-            './src/pages/AdaptiveManagementPage',
-            './src/pages/CacheMetricsDashboard'
-          ]
+        // Manual chunk splitting for optimal loading
+        manualChunks: (id) => {
+          // Vendor chunk for node_modules
+          if (id.includes('node_modules')) {
+            // Large libraries get their own chunks
+            if (id.includes('react') || id.includes('react-dom')) {
+              return 'react-vendor';
+            }
+            if (id.includes('react-router')) {
+              return 'router-vendor';
+            }
+            if (id.includes('lucide-react')) {
+              return 'icons-vendor';
+            }
+            if (id.includes('@radix-ui')) {
+              return 'radix-vendor';
+            }
+            if (id.includes('recharts')) {
+              return 'charts-vendor';
+            }
+            // All other vendor code
+            return 'vendor';
+          }
+          
+          // Feature-based chunks for app code
+          if (id.includes('/services/')) {
+            if (id.includes('icdService') || id.includes('dsm5Service') || id.includes('symptomService')) {
+              return 'clinical-services';
+            }
+            if (id.includes('pubmedService') || id.includes('clinicalTrialsService') || id.includes('drugBankService')) {
+              return 'research-services';
+            }
+            if (id.includes('aiProviderService')) {
+              return 'ai-services';
+            }
+            return 'services';
+          }
+          
+          if (id.includes('/pages/')) {
+            if (id.includes('Security') || id.includes('Admin') || id.includes('Privacy')) {
+              return 'security-pages';
+            }
+            if (id.includes('Analytics') || id.includes('Reporting') || id.includes('Dashboard')) {
+              return 'analytics-pages';
+            }
+            if (id.includes('ICD') || id.includes('DSM5') || id.includes('Symptom')) {
+              return 'clinical-pages';
+            }
+            return 'pages';
+          }
         },
-        // Asset naming
-        assetFileNames: 'assets/[name]-[hash][extname]',
-        chunkFileNames: 'assets/[name]-[hash].js',
-        entryFileNames: 'assets/[name]-[hash].js',
-        // Optimize asset file names
-        // Remove ? query string from imports
-        format: 'es',
+        
+        // Naming pattern for chunks
+        chunkFileNames: isProd 
+          ? 'assets/[name]-[hash].js' 
+          : 'assets/[name].js',
+        entryFileNames: isProd 
+          ? 'assets/[name]-[hash].js' 
+          : 'assets/[name].js',
+        assetFileNames: isProd 
+          ? 'assets/[name]-[hash].[ext]' 
+          : 'assets/[name].[ext]',
       },
     },
+    
+    // Build output settings
+    outDir: 'dist',
+    assetsDir: 'assets',
+    sourcemap: !isProd, // Source maps only in development
+    
     // Chunk size warnings
-    chunkSizeWarningLimit: 1000,
-    // CSS Code splitting
+    chunkSizeWarningLimit: 1000, // 1000 KB
+    
+    // CSS code splitting
     cssCodeSplit: true,
-    // Modulepreload
-    modulePreload: true,
+    
+    // Report compressed size
+    reportCompressedSize: isProd,
   },
+  
+  // Server configuration
   server: {
-    port: 3000,
-    host: true,
-    open: true,
+    port: 5173,
+    strictPort: false,
+    open: false,
     cors: true,
-    // Proxy for development
-    proxy: {
-      '/api': {
-        target: 'http://localhost:3001',
-        changeOrigin: true,
-        secure: false,
-      },
-    },
   },
+  
+  // Preview server configuration
   preview: {
-    port: 3000,
-    host: true,
+    port: 4173,
+    strictPort: false,
+    open: false,
   },
-  // Environment variables
-  define: {
-    __APP_VERSION__: JSON.stringify(process.env.npm_package_version),
-    __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
-  },
-  // Optimize dependencies
+  
+  // Dependency optimization
   optimizeDeps: {
     include: [
       'react',
       'react-dom',
       'react-router-dom',
       'lucide-react',
-      'clsx',
-      'tailwind-merge',
+      'date-fns',
     ],
-    // Exclude very large packages from pre-bundling
-    exclude: ['echarts', 'echarts-for-react'],
+    exclude: ['@vite/client', '@vite/env'],
   },
-  // CSS optimizations
-  css: {
-    devSourcemap: true,
-    postcss: './postcss.config.js',
-  },
-});
+})
+
