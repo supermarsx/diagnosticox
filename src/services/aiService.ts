@@ -1,574 +1,571 @@
-/**
- * Mock AI-Assisted Diagnosis Service
- * Provides sophisticated medical decision support with realistic responses
- */
-
-export interface AIDiagnosisSuggestion {
-  diagnosis: string;
-  icd10Code: string;
-  confidence: number; // 0-1
-  reasoning: string[];
-  supportingEvidence: string[];
-  contradictingEvidence?: string[];
-  recommendedTests: string[];
-  urgency: 'low' | 'medium' | 'high' | 'critical';
-  differentialRank: number;
-  evidenceLevel: 'I' | 'II' | 'III' | 'IV' | 'V';
-}
-
-export interface TreatmentRecommendation {
-  id: string;
-  treatmentName: string;
-  category: 'medication' | 'procedure' | 'lifestyle' | 'therapy' | 'surgery';
-  description: string;
-  efficacyRate: number; // 0-1
-  riskLevel: 'low' | 'moderate' | 'high';
-  evidenceLevel: 'I' | 'II' | 'III' | 'IV' | 'V';
-  guidelines: string[];
-  contraindications: string[];
-  drugInteractions?: string[];
-  monitoring: string[];
-  expectedOutcome: string;
-  costEffectiveness: 'low' | 'moderate' | 'high';
-}
-
-export interface DrugInteractionWarning {
-  severity: 'minor' | 'moderate' | 'major' | 'contraindicated';
-  drug1: string;
-  drug2: string;
-  interaction: string;
-  clinicalEffects: string[];
-  management: string;
-}
-
-export interface ClinicalGuideline {
-  title: string;
-  organization: string;
-  year: number;
-  recommendation: string;
-  strengthOfRecommendation: 'strong' | 'moderate' | 'weak' | 'conditional';
-  qualityOfEvidence: 'high' | 'moderate' | 'low' | 'very low';
-  applicability: string;
-}
-
-export interface AIAnalysisResult {
-  patientId: string;
-  analysisDate: string;
-  suggestions: AIDiagnosisSuggestion[];
-  treatmentRecommendations: TreatmentRecommendation[];
-  riskFactors: string[];
-  prognosticIndicators: {
-    factor: string;
-    impact: 'positive' | 'negative' | 'neutral';
-    description: string;
-  }[];
-  monitoringPlan: string[];
-  followUpRecommendations: string[];
-  clinicalPearls: string[];
-}
+import { AIDiagnosisSuggestion, TreatmentRecommendation, DrugInteractionWarning, ClinicalGuideline } from '@/types/medical';
 
 class AIService {
-  // Mock medical knowledge base
-  private readonly medicalKnowledge = {
-    'inflammatory-joint': {
-      diagnoses: [
-        {
-          name: 'Rheumatoid Arthritis',
-          icd10: 'M05.9',
-          keyFeatures: ['morning stiffness', 'symmetric joint involvement', 'positive RF', 'elevated CRP/ESR'],
-          treatments: ['methotrexate', 'biologics', 'NSAIDs', 'corticosteroids'],
-        },
-        {
-          name: 'Psoriatic Arthritis',
-          icd10: 'L40.50',
-          keyFeatures: ['psoriasis', 'dactylitis', 'nail changes', 'asymmetric joint involvement'],
-          treatments: ['methotrexate', 'TNF inhibitors', 'IL-17 inhibitors'],
-        },
-        {
-          name: 'Systemic Lupus Erythematosus',
-          icd10: 'M32.9',
-          keyFeatures: ['malar rash', 'photosensitivity', 'positive ANA', 'multi-organ involvement'],
-          treatments: ['hydroxychloroquine', 'corticosteroids', 'immunosuppressants'],
-        },
-      ],
-    },
-    'abdominal-pain': {
-      diagnoses: [
-        {
-          name: 'Inflammatory Bowel Disease (Crohn\'s)',
-          icd10: 'K50.9',
-          keyFeatures: ['chronic diarrhea', 'abdominal pain', 'weight loss', 'elevated inflammatory markers'],
-          treatments: ['5-ASA', 'corticosteroids', 'immunomodulators', 'biologics'],
-        },
-        {
-          name: 'Ulcerative Colitis',
-          icd10: 'K51.9',
-          keyFeatures: ['bloody diarrhea', 'urgency', 'continuous colonic involvement'],
-          treatments: ['5-ASA', 'corticosteroids', 'immunosuppressants', 'surgery'],
-        },
-        {
-          name: 'Celiac Disease',
-          icd10: 'K90.0',
-          keyFeatures: ['malabsorption', 'positive tissue transglutaminase', 'villous atrophy'],
-          treatments: ['gluten-free diet', 'nutritional supplements'],
-        },
-      ],
-    },
-  };
-
-  /**
-   * Analyze patient data and generate AI diagnosis suggestions
-   */
-  async analyzePatient(
-    patientId: string,
+  // Mock AI diagnosis with sophisticated medical reasoning
+  async generateAIDiagnosis(
     symptoms: string[],
-    labResults?: Record<string, any>,
-    demographics?: { age: number; gender: string }
-  ): Promise<AIAnalysisResult> {
-    // Simulate AI processing delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    patientData: any,
+    medicalHistory: string[]
+  ): Promise<AIDiagnosisSuggestion[]> {
+    // Simulate API delay
+    await this.delay(1500);
 
-    // Determine problem category from symptoms
-    const category = this.categorizeSymptoms(symptoms);
-    const knowledgeBase = this.medicalKnowledge[category as keyof typeof this.medicalKnowledge] || 
-                          this.medicalKnowledge['inflammatory-joint'];
-
-    // Generate AI suggestions
-    const suggestions: AIDiagnosisSuggestion[] = knowledgeBase.diagnoses.map((diagnosis, index) => {
-      const baseConfidence = 0.95 - (index * 0.12);
-      const confidence = Math.max(0.60, Math.min(0.95, baseConfidence + (Math.random() * 0.08 - 0.04)));
-
-      return {
-        diagnosis: diagnosis.name,
-        icd10Code: diagnosis.icd10,
-        confidence,
-        reasoning: this.generateReasoning(diagnosis.name, symptoms, labResults),
-        supportingEvidence: this.getSupportingEvidence(diagnosis.keyFeatures, symptoms),
-        contradictingEvidence: index > 0 ? this.getContradictingEvidence(diagnosis.name) : undefined,
-        recommendedTests: this.getRecommendedTests(diagnosis.name),
-        urgency: this.assessUrgency(confidence, symptoms),
-        differentialRank: index + 1,
-        evidenceLevel: this.getEvidenceLevel(confidence),
-      };
-    });
-
-    // Generate treatment recommendations
-    const topDiagnosis = knowledgeBase.diagnoses[0];
-    const treatmentRecommendations = this.generateTreatmentRecommendations(topDiagnosis);
-
-    // Generate risk factors and prognostic indicators
-    const riskFactors = this.identifyRiskFactors(demographics, symptoms);
-    const prognosticIndicators = this.generatePrognosticIndicators(topDiagnosis.name);
-
-    return {
-      patientId,
-      analysisDate: new Date().toISOString(),
-      suggestions,
-      treatmentRecommendations,
-      riskFactors,
-      prognosticIndicators,
-      monitoringPlan: this.generateMonitoringPlan(topDiagnosis.name),
-      followUpRecommendations: this.generateFollowUpRecommendations(topDiagnosis.name),
-      clinicalPearls: this.getClinicalPearls(topDiagnosis.name),
-    };
+    const diagnoses = this.analyzeSymptoms(symptoms, patientData, medicalHistory);
+    return diagnoses.map(diagnosis => ({
+      id: `ai-diagnosis-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      primaryDiagnosis: diagnosis.condition,
+      confidence: diagnosis.confidence,
+      differentialDiagnosis: diagnosis.differentials,
+      supportingSymptoms: diagnosis.supportingSymptoms,
+      reasoning: diagnosis.reasoning,
+      riskFactors: diagnosis.riskFactors,
+      redFlags: diagnosis.redFlags,
+      recommendedTests: diagnosis.recommendedTests,
+      icd10Code: diagnosis.icd10Code,
+      severity: diagnosis.severity,
+      urgency: diagnosis.urgency,
+      aiAnalysisId: `ai-analysis-${Date.now()}`,
+      timestamp: new Date().toISOString()
+    }));
   }
 
-  /**
-   * Get treatment recommendations for a specific diagnosis
-   */
-  async getTreatmentRecommendations(diagnosis: string): Promise<TreatmentRecommendation[]> {
-    await new Promise(resolve => setTimeout(resolve, 800));
+  // Generate treatment recommendations
+  async generateTreatmentRecommendations(
+    diagnosis: string,
+    patientData: any,
+    allergies: string[] = [],
+    currentMedications: string[] = []
+  ): Promise<TreatmentRecommendation[]> {
+    await this.delay(1000);
+
+    const recommendations = this.getTreatmentPlan(diagnosis, patientData, allergies, currentMedications);
     
-    const treatments: Record<string, TreatmentRecommendation[]> = {
-      'Rheumatoid Arthritis': [
-        {
-          id: 'ra-mtx',
-          treatmentName: 'Methotrexate',
-          category: 'medication',
-          description: 'First-line DMARD for RA with proven efficacy in reducing disease activity and preventing joint damage',
-          efficacyRate: 0.75,
-          riskLevel: 'moderate',
-          evidenceLevel: 'I',
-          guidelines: ['ACR 2021 Guidelines', 'EULAR 2019 Recommendations'],
-          contraindications: ['Pregnancy', 'Severe hepatic impairment', 'Significant alcohol consumption'],
-          drugInteractions: ['NSAIDs (increased toxicity)', 'Trimethoprim (bone marrow suppression)'],
-          monitoring: ['CBC every 4-8 weeks', 'LFTs every 4-8 weeks', 'Creatinine periodically'],
-          expectedOutcome: '60-70% achieve good disease control within 3-6 months',
-          costEffectiveness: 'high',
-        },
-        {
-          id: 'ra-tnf',
-          treatmentName: 'TNF Inhibitors (e.g., Adalimumab)',
-          category: 'medication',
-          description: 'Biologic DMARD targeting tumor necrosis factor, highly effective for moderate to severe RA',
-          efficacyRate: 0.85,
-          riskLevel: 'moderate',
-          evidenceLevel: 'I',
-          guidelines: ['ACR 2021 Guidelines - Second line after MTX failure'],
-          contraindications: ['Active infection', 'Heart failure (NYHA III-IV)', 'Multiple sclerosis'],
-          drugInteractions: ['Live vaccines (avoid)', 'Other biologics (increased infection risk)'],
-          monitoring: ['TB screening before initiation', 'Infection monitoring', 'CBC, LFTs every 3 months'],
-          expectedOutcome: 'ACR50 response in 50-60% of patients at 6 months',
-          costEffectiveness: 'moderate',
-        },
-        {
-          id: 'ra-nsaid',
-          treatmentName: 'NSAIDs + Gastroprotection',
-          category: 'medication',
-          description: 'Symptomatic relief of pain and inflammation, not disease-modifying',
-          efficacyRate: 0.60,
-          riskLevel: 'low',
-          evidenceLevel: 'I',
-          guidelines: ['ACR - Adjunctive therapy only'],
-          contraindications: ['Active peptic ulcer', 'Severe renal impairment', 'Anticoagulation'],
-          drugInteractions: ['Warfarin (increased bleeding)', 'ACE inhibitors (reduced efficacy)'],
-          monitoring: ['Renal function every 6 months', 'Blood pressure monitoring'],
-          expectedOutcome: 'Symptom relief within days, no disease modification',
-          costEffectiveness: 'high',
-        },
-        {
-          id: 'ra-lifestyle',
-          treatmentName: 'Physical Therapy and Exercise',
-          category: 'lifestyle',
-          description: 'Regular exercise program to maintain joint mobility, strength, and function',
-          efficacyRate: 0.70,
-          riskLevel: 'low',
-          evidenceLevel: 'II',
-          guidelines: ['ACR - Recommended for all RA patients'],
-          contraindications: ['Acute joint inflammation', 'Severe pain limiting movement'],
-          monitoring: ['Functional assessment every 3 months', 'Pain levels', 'Joint mobility'],
-          expectedOutcome: 'Improved function and quality of life, reduced disability progression',
-          costEffectiveness: 'high',
-        },
-      ],
-      'Inflammatory Bowel Disease (Crohn\'s)': [
-        {
-          id: 'ibd-5asa',
-          treatmentName: '5-Aminosalicylates (Mesalamine)',
-          category: 'medication',
-          description: 'Anti-inflammatory agent for mild to moderate IBD, reduces mucosal inflammation',
-          efficacyRate: 0.65,
-          riskLevel: 'low',
-          evidenceLevel: 'I',
-          guidelines: ['ACG 2018 IBD Guidelines'],
-          contraindications: ['Salicylate hypersensitivity', 'Severe renal impairment'],
-          drugInteractions: ['Azathioprine (possible increased myelotoxicity)'],
-          monitoring: ['Renal function every 6 months', 'CBC annually'],
-          expectedOutcome: 'Clinical remission in 40-50% of mild disease',
-          costEffectiveness: 'high',
-        },
-        {
-          id: 'ibd-biologic',
-          treatmentName: 'Anti-TNF Biologics (Infliximab)',
-          category: 'medication',
-          description: 'Monoclonal antibody for moderate to severe IBD, highly effective for inducing and maintaining remission',
-          efficacyRate: 0.80,
-          riskLevel: 'moderate',
-          evidenceLevel: 'I',
-          guidelines: ['ACG 2018 - For moderate to severe disease'],
-          contraindications: ['Active tuberculosis', 'Sepsis', 'Heart failure'],
-          drugInteractions: ['Live vaccines', 'Other immunosuppressants'],
-          monitoring: ['TB screening', 'Hepatitis B screening', 'Infection surveillance'],
-          expectedOutcome: 'Clinical remission in 60-70% at 1 year',
-          costEffectiveness: 'moderate',
-        },
-        {
-          id: 'ibd-nutrition',
-          treatmentName: 'Nutritional Therapy',
-          category: 'lifestyle',
-          description: 'Dietary modification and nutritional supplementation to address malabsorption and inflammation',
-          efficacyRate: 0.55,
-          riskLevel: 'low',
-          evidenceLevel: 'II',
-          guidelines: ['ESPEN Guidelines on Clinical Nutrition in IBD'],
-          contraindications: ['None specific'],
-          monitoring: ['Nutritional status', 'Vitamin levels (B12, D, folate)', 'Weight'],
-          expectedOutcome: 'Improved nutritional status, may reduce disease activity',
-          costEffectiveness: 'high',
-        },
-      ],
-    };
-
-    return treatments[diagnosis] || treatments['Rheumatoid Arthritis'];
+    return recommendations.map(rec => ({
+      id: `treatment-rec-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      treatmentType: rec.type,
+      recommendation: rec.recommendation,
+      dosage: rec.dosage,
+      frequency: rec.frequency,
+      duration: rec.duration,
+      route: rec.route,
+      monitoringRequirements: rec.monitoring,
+      contraindications: rec.contraindications,
+      sideEffects: rec.sideEffects,
+      patientEducation: rec.education,
+      costEffectiveness: rec.costEffectiveness,
+      evidenceLevel: rec.evidenceLevel,
+      recommendationStrength: rec.strength,
+      timestamp: new Date().toISOString()
+    }));
   }
 
-  /**
-   * Check for drug interactions
-   */
-  async checkDrugInteractions(medications: string[]): Promise<DrugInteractionWarning[]> {
-    await new Promise(resolve => setTimeout(resolve, 500));
+  // Check for drug interactions
+  async checkDrugInteractions(
+    medications: string[]
+  ): Promise<DrugInteractionWarning[]> {
+    await this.delay(800);
 
-    const interactions: DrugInteractionWarning[] = [];
+    const interactions = this.analyzeDrugInteractions(medications);
+    
+    return interactions.map(interaction => ({
+      id: `drug-interaction-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      drug1: interaction.drug1,
+      drug2: interaction.drug2,
+      interactionType: interaction.type,
+      severity: interaction.severity,
+      description: interaction.description,
+      clinicalEffect: interaction.effect,
+      mechanism: interaction.mechanism,
+      recommendations: interaction.recommendations,
+      monitoringRequired: interaction.monitoring,
+      timestamp: new Date().toISOString()
+    }));
+  }
 
-    // Common interaction patterns
-    const interactionDatabase: Record<string, DrugInteractionWarning[]> = {
-      'methotrexate-nsaid': [
-        {
-          severity: 'major',
-          drug1: 'Methotrexate',
-          drug2: 'NSAIDs',
-          interaction: 'NSAIDs may reduce renal clearance of methotrexate, leading to increased toxicity',
-          clinicalEffects: ['Bone marrow suppression', 'Renal toxicity', 'Hepatotoxicity', 'Gastrointestinal ulceration'],
-          management: 'Use with caution. Monitor CBC, LFTs, and renal function closely. Consider using selective COX-2 inhibitors or low-dose NSAIDs for short periods only.',
-        },
-      ],
-      'warfarin-nsaid': [
-        {
-          severity: 'major',
-          drug1: 'Warfarin',
-          drug2: 'NSAIDs',
-          interaction: 'NSAIDs inhibit platelet function and may increase bleeding risk when combined with anticoagulants',
-          clinicalEffects: ['Increased bleeding risk', 'GI bleeding', 'Prolonged INR'],
-          management: 'Avoid combination if possible. If necessary, monitor INR closely and watch for signs of bleeding. Consider gastroprotection.',
-        },
-      ],
-      'corticosteroid-nsaid': [
-        {
-          severity: 'moderate',
-          drug1: 'Corticosteroids',
-          drug2: 'NSAIDs',
-          interaction: 'Combined use increases risk of gastrointestinal ulceration and bleeding',
-          clinicalEffects: ['Peptic ulcer disease', 'GI bleeding', 'Perforation'],
-          management: 'Consider gastroprotection with PPI. Monitor for GI symptoms. Use lowest effective doses.',
-        },
-      ],
+  // Get clinical guidelines
+  async getClinicalGuidelines(
+    condition: string,
+    patientCategory?: string
+  ): Promise<ClinicalGuideline[]> {
+    await this.delay(600);
+
+    const guidelines = this.findGuidelines(condition, patientCategory);
+    
+    return guidelines.map(guideline => ({
+      id: `guideline-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      title: guideline.title,
+      organization: guideline.organization,
+      lastUpdated: guideline.lastUpdated,
+      version: guideline.version,
+      condition: guideline.condition,
+      category: guideline.category,
+      recommendations: guideline.recommendations,
+      evidenceLevel: guideline.evidenceLevel,
+      strengthOfRecommendation: guideline.strength,
+      qualityOfEvidence: guideline.quality,
+      externalUrl: guideline.url,
+      keyPoints: guideline.keyPoints,
+      implementationNotes: guideline.implementation,
+      timestamp: new Date().toISOString()
+    }));
+  }
+
+  // Advanced symptom analysis
+  private analyzeSymptoms(
+    symptoms: string[],
+    patientData: any,
+    medicalHistory: string[]
+  ): Array<{
+    condition: string;
+    confidence: number;
+    differentials: string[];
+    supportingSymptoms: string[];
+    reasoning: string;
+    riskFactors: string[];
+    redFlags: string[];
+    recommendedTests: string[];
+    icd10Code: string;
+    severity: 'mild' | 'moderate' | 'severe';
+    urgency: 'routine' | 'urgent' | 'emergency';
+  }> {
+    const symptomPatterns = {
+      chestPain: {
+        conditions: ['Myocardial Infarction', 'Angina Pectoris', 'Pulmonary Embolism', 'Costochondritis'],
+        icd10Codes: ['I21.3', 'I20.0', 'I26.0', 'M94.0'],
+        redFlags: ['severe crushing pain', 'radiation to left arm', 'shortness of breath', 'diaphoresis', 'nausea'],
+        tests: ['ECG', 'Troponin', 'Chest X-ray', 'CT Angiography']
+      },
+      shortnessOfBreath: {
+        conditions: ['Heart Failure', 'COPD', 'Pneumonia', 'Asthma', 'Pulmonary Embolism'],
+        icd10Codes: ['I50.9', 'J44.1', 'J18.9', 'J45.9', 'I26.0'],
+        redFlags: ['sudden onset', 'chest pain', 'hemoptysis', 'tachypnea'],
+        tests: ['Chest X-ray', 'SpO2', 'ABG', 'BNP', 'Pulmonary Function Tests']
+      },
+      abdominalPain: {
+        conditions: ['Appendicitis', 'Cholecystitis', 'Pancreatitis', 'Gastritis', 'IBS'],
+        icd10Codes: ['K35.9', 'K81.9', 'K85.9', 'K29.9', 'K58.9'],
+        redFlags: ['rebound tenderness', 'rigid abdomen', 'fever', 'vomiting blood'],
+        tests: ['CT Abdomen', 'CBC', 'LIPASE', 'Amylase', 'Ultrasound']
+      },
+      headache: {
+        conditions: ['Migraine', 'Tension Headache', 'Cluster Headache', 'Subarachnoid Hemorrhage'],
+        icd10Codes: ['G43.9', 'G44.2', 'G44.0', 'I60.9'],
+        redFlags: ['sudden severe headache', 'neck stiffness', 'visual changes', 'altered consciousness'],
+        tests: ['CT Head', 'MRI', 'Lumbar Puncture', 'Ophthalmologic Exam']
+      }
     };
 
-    // Check all medication pairs
-    for (let i = 0; i < medications.length; i++) {
-      for (let j = i + 1; j < medications.length; j++) {
-        const key1 = `${medications[i].toLowerCase()}-${medications[j].toLowerCase()}`;
-        const key2 = `${medications[j].toLowerCase()}-${medications[i].toLowerCase()}`;
-        
-        if (interactionDatabase[key1]) {
-          interactions.push(...interactionDatabase[key1]);
-        } else if (interactionDatabase[key2]) {
-          interactions.push(...interactionDatabase[key2]);
+    const diagnoses = [];
+
+    // Match symptoms to potential conditions
+    for (const [symptomKey, pattern] of Object.entries(symptomPatterns)) {
+      const matchedSymptoms = symptoms.filter(symptom => 
+        symptom.toLowerCase().includes(symptomKey.toLowerCase().replace(/([A-Z])/g, ' $1').trim()) ||
+        pattern.redFlags.some(flag => symptom.toLowerCase().includes(flag.toLowerCase()))
+      );
+
+      if (matchedSymptoms.length > 0) {
+        // Calculate confidence based on symptom matches and risk factors
+        const baseConfidence = Math.min(matchedSymptoms.length * 0.3, 0.9);
+        const riskFactorBonus = this.calculateRiskFactorBonus(patientData, medicalHistory, pattern.conditions[0]);
+        const confidence = Math.min(baseConfidence + riskFactorBonus, 0.95);
+
+        diagnoses.push({
+          condition: pattern.conditions[0],
+          confidence,
+          differentials: pattern.conditions.slice(1),
+          supportingSymptoms: matchedSymptoms,
+          reasoning: this.generateReasoning(symptomKey, matchedSymptoms, patientData),
+          riskFactors: this.identifyRiskFactors(patientData, medicalHistory, pattern.conditions[0]),
+          redFlags: pattern.redFlags.filter(flag => 
+            symptoms.some(s => s.toLowerCase().includes(flag.toLowerCase()))
+          ),
+          recommendedTests: pattern.tests,
+          icd10Code: pattern.icd10Codes[0],
+          severity: this.assessSeverity(symptoms, pattern.redFlags),
+          urgency: this.assessUrgency(symptoms, pattern.redFlags)
+        });
+      }
+    }
+
+    return diagnoses.sort((a, b) => b.confidence - a.confidence);
+  }
+
+  // Generate treatment plan
+  private getTreatmentPlan(
+    diagnosis: string,
+    patientData: any,
+    allergies: string[],
+    currentMedications: string[]
+  ): Array<{
+    type: 'medication' | 'procedure' | 'lifestyle' | 'monitoring';
+    recommendation: string;
+    dosage?: string;
+    frequency?: string;
+    duration?: string;
+    route?: string;
+    monitoring: string[];
+    contraindications: string[];
+    sideEffects: string[];
+    education: string;
+    costEffectiveness: 'high' | 'moderate' | 'low';
+    evidenceLevel: 'A' | 'B' | 'C';
+    strength: 'strong' | 'moderate' | 'weak';
+  }> {
+    const treatmentPlans: Record<string, any> = {
+      'Myocardial Infarction': {
+        medications: [
+          { drug: 'Aspirin', dosage: '325mg', frequency: 'once', duration: 'indefinite', evidence: 'A', strength: 'strong' },
+          { drug: 'Clopidogrel', dosage: '75mg', frequency: 'daily', duration: '12 months', evidence: 'A', strength: 'strong' },
+          { drug: 'Atorvastatin', dosage: '40-80mg', frequency: 'daily', duration: 'indefinite', evidence: 'A', strength: 'strong' }
+        ],
+        procedures: ['Cardiac catheterization', 'PCI if indicated'],
+        monitoring: ['ECG monitoring', 'Cardiac enzymes', 'Lipid panel']
+      },
+      'Hypertension': {
+        medications: [
+          { drug: 'Lisinopril', dosage: '10-40mg', frequency: 'daily', duration: 'indefinite', evidence: 'A', strength: 'strong' },
+          { drug: 'Amlodipine', dosage: '5-10mg', frequency: 'daily', duration: 'indefinite', evidence: 'A', strength: 'strong' }
+        ],
+        lifestyle: ['DASH diet', 'Regular exercise', 'Weight management', 'Sodium restriction'],
+        monitoring: ['Blood pressure monitoring', 'Renal function', 'Electrolytes']
+      },
+      'Type 2 Diabetes': {
+        medications: [
+          { drug: 'Metformin', dosage: '500-2000mg', frequency: 'twice daily', duration: 'indefinite', evidence: 'A', strength: 'strong' },
+          { drug: 'Empagliflozin', dosage: '10-25mg', frequency: 'daily', duration: 'indefinite', evidence: 'A', strength: 'strong' }
+        ],
+        lifestyle: ['Diabetic diet', 'Regular exercise', 'Weight management', 'Foot care education'],
+        monitoring: ['HbA1c every 3 months', 'Blood glucose monitoring', 'Annual eye exam', 'Kidney function']
+      }
+    };
+
+    const plan = treatmentPlans[diagnosis] || {
+      medications: [{ drug: 'Supportive care', evidence: 'C', strength: 'weak' }],
+      monitoring: ['Clinical follow-up']
+    };
+
+    const recommendations = [];
+
+    // Process medications
+    if (plan.medications) {
+      for (const med of plan.medications) {
+        if (!allergies.some(allergy => med.drug.toLowerCase().includes(allergy.toLowerCase()))) {
+          recommendations.push({
+            type: 'medication',
+            recommendation: med.drug,
+            dosage: med.dosage,
+            frequency: med.frequency,
+            duration: med.duration,
+            route: 'oral',
+            monitoring: plan.monitoring || [],
+            contraindications: this.getContraindications(med.drug),
+            sideEffects: this.getSideEffects(med.drug),
+            education: this.getPatientEducation(med.drug, diagnosis),
+            costEffectiveness: this.assessCostEffectiveness(med.drug),
+            evidenceLevel: med.evidence || 'B',
+            strength: med.strength || 'moderate'
+          });
         }
       }
     }
 
+    // Add lifestyle recommendations
+    if (plan.lifestyle) {
+      for (const lifestyle of plan.lifestyle) {
+        recommendations.push({
+          type: 'lifestyle',
+          recommendation: lifestyle,
+          monitoring: ['Regular follow-up', 'Progress tracking'],
+          contraindications: [],
+          sideEffects: [],
+          education: this.getLifestyleEducation(lifestyle),
+          costEffectiveness: 'high',
+          evidenceLevel: 'A',
+          strength: 'strong'
+        });
+      }
+    }
+
+    // Add monitoring recommendations
+    if (plan.monitoring) {
+      for (const monitor of plan.monitoring) {
+        recommendations.push({
+          type: 'monitoring',
+          recommendation: monitor,
+          monitoring: ['Track results', 'Report abnormalities'],
+          contraindications: [],
+          sideEffects: [],
+          education: this.getMonitoringEducation(monitor),
+          costEffectiveness: 'high',
+          evidenceLevel: 'A',
+          strength: 'strong'
+        });
+      }
+    }
+
+    return recommendations;
+  }
+
+  // Analyze drug interactions
+  private analyzeDrugInteractions(medications: string[]): Array<{
+    drug1: string;
+    drug2: string;
+    type: 'major' | 'moderate' | 'minor';
+    severity: 'high' | 'moderate' | 'low';
+    description: string;
+    effect: string;
+    mechanism: string;
+    recommendations: string[];
+    monitoring: string[];
+  }> {
+    const knownInteractions: Record<string, any> = {
+      'warfarin+aspirin': {
+        type: 'major',
+        severity: 'high',
+        description: 'Increased bleeding risk',
+        effect: 'Additive anticoagulant effect',
+        mechanism: 'Inhibition of platelet function',
+        recommendations: ['Avoid combination', 'Monitor INR closely', 'Consider alternative'],
+        monitoring: ['INR', 'Bleeding signs', 'CBC']
+      },
+      'lisinopril+spironolactone': {
+        type: 'major',
+        severity: 'high',
+        description: 'Hyperkalemia risk',
+        effect: 'Increased potassium levels',
+        mechanism: 'Reduced potassium excretion',
+        recommendations: ['Monitor potassium', 'Consider alternative diuretic'],
+        monitoring: ['Serum potassium', 'Renal function']
+      },
+      'metformin+contrast': {
+        type: 'major',
+        severity: 'high',
+        description: 'Lactic acidosis risk',
+        effect: 'Reduced renal clearance of metformin',
+        mechanism: 'Contrast-induced nephropathy',
+        recommendations: ['Hold metformin 48h before/after contrast', 'Monitor renal function'],
+        monitoring: ['Serum creatinine', 'Lactate levels']
+      }
+    };
+
+    const interactions = [];
+    
+    for (let i = 0; i < medications.length; i++) {
+      for (let j = i + 1; j < medications.length; j++) {
+        const med1 = medications[i].toLowerCase();
+        const med2 = medications[j].toLowerCase();
+        
+        // Check for known interactions
+        const interactionKey = `${med1}+${med2}`;
+        const reverseKey = `${med2}+${med1}`;
+        
+        const interaction = knownInteractions[interactionKey] || knownInteractions[reverseKey];
+        
+        if (interaction) {
+          interactions.push({
+            drug1: medications[i],
+            drug2: medications[j],
+            ...interaction
+          });
+        }
+      }
+    }
+    
     return interactions;
   }
 
-  /**
-   * Get clinical guidelines for a condition
-   */
-  async getClinicalGuidelines(condition: string): Promise<ClinicalGuideline[]> {
-    await new Promise(resolve => setTimeout(resolve, 600));
-
-    const guidelines: Record<string, ClinicalGuideline[]> = {
-      'Rheumatoid Arthritis': [
-        {
-          title: 'American College of Rheumatology Guideline for the Treatment of Rheumatoid Arthritis',
-          organization: 'American College of Rheumatology (ACR)',
-          year: 2021,
-          recommendation: 'Conventional synthetic DMARDs (particularly methotrexate) are recommended as first-line therapy for all patients with RA',
-          strengthOfRecommendation: 'strong',
-          qualityOfEvidence: 'high',
-          applicability: 'All patients with newly diagnosed RA without contraindications',
-        },
-        {
-          title: 'EULAR Recommendations for the Management of Rheumatoid Arthritis',
-          organization: 'European League Against Rheumatism (EULAR)',
-          year: 2019,
-          recommendation: 'Treat-to-target strategy with regular disease activity monitoring and treatment adjustment to achieve remission or low disease activity',
-          strengthOfRecommendation: 'strong',
-          qualityOfEvidence: 'high',
-          applicability: 'All patients with active RA',
-        },
-        {
-          title: 'ACR Guideline for Biologic DMARDs in RA',
-          organization: 'American College of Rheumatology',
-          year: 2021,
-          recommendation: 'Biologic or targeted synthetic DMARDs should be added in patients with moderate-to-high disease activity despite conventional DMARD therapy',
-          strengthOfRecommendation: 'strong',
-          qualityOfEvidence: 'moderate',
-          applicability: 'Patients with inadequate response to methotrexate monotherapy',
-        },
-      ],
-      'Inflammatory Bowel Disease': [
-        {
-          title: 'ACG Clinical Guideline: Management of Crohn\'s Disease in Adults',
-          organization: 'American College of Gastroenterology (ACG)',
-          year: 2018,
-          recommendation: 'Anti-TNF therapy is recommended for inducing remission in patients with moderate-to-severe Crohn\'s disease',
-          strengthOfRecommendation: 'strong',
-          qualityOfEvidence: 'high',
-          applicability: 'Moderate to severe active Crohn\'s disease',
-        },
-        {
-          title: 'ECCO Guidelines on Therapeutics in Crohn\'s Disease',
-          organization: 'European Crohn\'s and Colitis Organisation (ECCO)',
-          year: 2020,
-          recommendation: 'Early use of immunomodulators or biologics in high-risk patients to prevent disease progression',
-          strengthOfRecommendation: 'moderate',
-          qualityOfEvidence: 'moderate',
-          applicability: 'Newly diagnosed patients with poor prognostic factors',
-        },
-      ],
+  // Find clinical guidelines
+  private findGuidelines(condition: string, patientCategory?: string): Array<{
+    title: string;
+    organization: string;
+    lastUpdated: string;
+    version: string;
+    condition: string;
+    category: string;
+    recommendations: string[];
+    evidenceLevel: string;
+    strength: string;
+    quality: string;
+    url: string;
+    keyPoints: string[];
+    implementation: string;
+  }> {
+    const guidelines = {
+      'Myocardial Infarction': {
+        title: 'STEMI Guidelines',
+        organization: 'American Heart Association',
+        lastUpdated: '2023',
+        version: '8.0',
+        category: 'Cardiology',
+        recommendations: [
+          'Primary PCI within 90 minutes of first medical contact',
+          'Aspirin 325mg chewed immediately',
+          'P2Y12 inhibitor (clopidogrel, prasugrel, or ticagrelor)',
+          'High-intensity statin therapy',
+          'ACE inhibitor for patients with LV dysfunction'
+        ],
+        evidenceLevel: 'A',
+        strength: 'Strong',
+        quality: 'High',
+        url: 'https://www.ahajournals.org/doi/10.1161/CIR.0000000000001063',
+        keyPoints: [
+          'Time is muscle - faster treatment saves lives',
+          'Dual antiplatelet therapy essential',
+          'Statin therapy for all patients regardless of cholesterol levels'
+        ],
+        implementation: 'Implement protocols for rapid triage and treatment'
+      },
+      'Hypertension': {
+        title: 'Hypertension Management Guidelines',
+        organization: 'American College of Cardiology',
+        lastUpdated: '2023',
+        version: '2.0',
+        category: 'Cardiology',
+        recommendations: [
+          'Target BP <130/80 mmHg for most adults',
+          'Lifestyle modifications as first-line therapy',
+          'ACE inhibitor or ARB as first-line medication',
+          'Combination therapy if BP >20/10 above target',
+          'Monitor for side effects and target organ damage'
+        ],
+        evidenceLevel: 'A',
+        strength: 'Strong',
+        quality: 'High',
+        url: 'https://www.acc.org/guidelines',
+        keyPoints: [
+          'Lower targets benefit high-risk patients',
+          'Home blood pressure monitoring recommended',
+          'Team-based care improves outcomes'
+        ],
+        implementation: 'Use standardized treatment protocols and patient education'
+      }
     };
 
-    return guidelines[condition] || guidelines['Rheumatoid Arthritis'];
-  }
-
-  // Helper methods
-  private categorizeSymptoms(symptoms: string[]): string {
-    const symptomText = symptoms.join(' ').toLowerCase();
-    if (symptomText.includes('joint') || symptomText.includes('arthritis') || symptomText.includes('stiffness')) {
-      return 'inflammatory-joint';
+    const guideline = guidelines[condition];
+    if (guideline) {
+      return [guideline];
     }
-    if (symptomText.includes('abdominal') || symptomText.includes('diarrhea') || symptomText.includes('bowel')) {
-      return 'abdominal-pain';
-    }
-    return 'inflammatory-joint'; // default
-  }
-
-  private generateReasoning(diagnosis: string, symptoms: string[], labResults?: Record<string, any>): string[] {
-    const reasoning = [
-      `Clinical presentation is highly consistent with ${diagnosis}`,
-      `Pattern of symptoms matches typical disease progression`,
-      `Demographic profile aligns with common patient population`,
-    ];
-
-    if (labResults) {
-      reasoning.push('Laboratory findings support inflammatory process');
-      reasoning.push('Biomarker elevation consistent with active disease');
-    }
-
-    reasoning.push('Differential diagnosis excludes other common mimics');
-    return reasoning;
-  }
-
-  private getSupportingEvidence(keyFeatures: string[], symptoms: string[]): string[] {
-    return keyFeatures.map(feature => `Presence of ${feature} strongly supports this diagnosis`);
-  }
-
-  private getContradictingEvidence(diagnosis: string): string[] {
-    return [
-      'Some atypical features present',
-      'Disease course differs slightly from textbook presentation',
-    ];
-  }
-
-  private getRecommendedTests(diagnosis: string): string[] {
-    const tests: Record<string, string[]> = {
-      'Rheumatoid Arthritis': [
-        'Rheumatoid Factor (RF)',
-        'Anti-CCP antibodies',
-        'ESR and CRP',
-        'Complete Blood Count',
-        'Joint X-rays (hands and feet)',
-        'Ultrasound or MRI for early erosions',
+    
+    return [{
+      title: 'General Clinical Guidelines',
+      organization: 'Various Medical Societies',
+      lastUpdated: '2023',
+      version: '1.0',
+      condition,
+      category: 'General Medicine',
+      recommendations: [
+        'Follow evidence-based treatment protocols',
+        'Consider patient-specific factors',
+        'Monitor treatment response',
+        'Adjust therapy as needed'
       ],
-      'Inflammatory Bowel Disease (Crohn\'s)': [
-        'Colonoscopy with biopsy',
-        'CT or MRI enterography',
-        'Fecal calprotectin',
-        'Complete Blood Count',
-        'CRP and ESR',
-        'Comprehensive metabolic panel',
+      evidenceLevel: 'B',
+      strength: 'Moderate',
+      quality: 'Moderate',
+      url: 'https://www.guidelines.gov',
+      keyPoints: [
+        'Individualize treatment based on patient factors',
+        'Consider comorbidities and drug interactions'
       ],
+      implementation: 'Apply clinical judgment and patient preferences'
+    }];
+  }
+
+  // Utility methods
+  private delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  private calculateRiskFactorBonus(patientData: any, medicalHistory: string[], condition: string): number {
+    let bonus = 0;
+    
+    if (patientData.age > 65) bonus += 0.1;
+    if (patientData.gender === 'male' && condition.includes('Cardiac')) bonus += 0.05;
+    if (patientData.gender === 'female' && condition.includes('Migraine')) bonus += 0.05;
+    
+    medicalHistory.forEach(history => {
+      if (history.toLowerCase().includes('diabetes') && condition.includes('Cardiac')) bonus += 0.15;
+      if (history.toLowerCase().includes('hypertension') && condition.includes('Cardiac')) bonus += 0.1;
+    });
+    
+    return Math.min(bonus, 0.3);
+  }
+
+  private generateReasoning(symptom: string, symptoms: string[], patientData: any): string {
+    return `Analysis based on presenting symptoms (${symptoms.join(', ')}) in the context of patient demographics and medical history. The constellation of symptoms suggests ${symptom} as a likely diagnosis.`;
+  }
+
+  private identifyRiskFactors(patientData: any, medicalHistory: string[], condition: string): string[] {
+    const riskFactors = [];
+    
+    if (patientData.age > 65) riskFactors.push('Advanced age');
+    if (medicalHistory.includes('diabetes')) riskFactors.push('Diabetes mellitus');
+    if (medicalHistory.includes('hypertension')) riskFactors.push('Hypertension');
+    if (medicalHistory.includes('smoking')) riskFactors.push('Smoking history');
+    
+    return riskFactors;
+  }
+
+  private assessSeverity(symptoms: string[], redFlags: string[]): 'mild' | 'moderate' | 'severe' {
+    const hasRedFlags = redFlags.some(flag => 
+      symptoms.some(s => s.toLowerCase().includes(flag.toLowerCase()))
+    );
+    
+    if (hasRedFlags) return 'severe';
+    if (symptoms.length > 3) return 'moderate';
+    return 'mild';
+  }
+
+  private assessUrgency(symptoms: string[], redFlags: string[]): 'routine' | 'urgent' | 'emergency' {
+    const hasRedFlags = redFlags.some(flag => 
+      symptoms.some(s => s.toLowerCase().includes(flag.toLowerCase()))
+    );
+    
+    if (hasRedFlags) return 'emergency';
+    if (symptoms.includes('chest pain') || symptoms.includes('shortness of breath')) return 'urgent';
+    return 'routine';
+  }
+
+  private getContraindications(drug: string): string[] {
+    const contraindications: Record<string, string[]> = {
+      'warfarin': ['Pregnancy', 'Active bleeding', 'Recent surgery'],
+      'lisinopril': ['Pregnancy', 'Bilateral renal artery stenosis', 'History of angioedema'],
+      'metformin': ['Renal impairment', 'Hepatic disease', 'Alcohol abuse']
     };
-    return tests[diagnosis] || tests['Rheumatoid Arthritis'];
+    
+    return contraindications[drug] || [];
   }
 
-  private assessUrgency(confidence: number, symptoms: string[]): 'low' | 'medium' | 'high' | 'critical' {
-    if (confidence > 0.85) return 'high';
-    if (confidence > 0.70) return 'medium';
-    return 'low';
-  }
-
-  private getEvidenceLevel(confidence: number): 'I' | 'II' | 'III' | 'IV' | 'V' {
-    if (confidence >= 0.85) return 'I';
-    if (confidence >= 0.75) return 'II';
-    if (confidence >= 0.65) return 'III';
-    return 'IV';
-  }
-
-  private generateTreatmentRecommendations(diagnosis: any): TreatmentRecommendation[] {
-    // Returns from getTreatmentRecommendations synchronously for this mock
-    return [];
-  }
-
-  private identifyRiskFactors(demographics?: { age: number; gender: string }, symptoms?: string[]): string[] {
-    const factors = [];
-    if (demographics?.age && demographics.age > 50) {
-      factors.push('Age > 50 increases risk of severe disease course');
-    }
-    if (demographics?.gender === 'Female') {
-      factors.push('Female gender associated with higher prevalence of autoimmune conditions');
-    }
-    factors.push('Family history may contribute to disease susceptibility');
-    factors.push('Environmental factors and lifestyle modifications important');
-    return factors;
-  }
-
-  private generatePrognosticIndicators(diagnosis: string): Array<{ factor: string; impact: 'positive' | 'negative' | 'neutral'; description: string }> {
-    return [
-      {
-        factor: 'Early diagnosis',
-        impact: 'positive',
-        description: 'Treatment initiated within 3 months of symptom onset improves long-term outcomes',
-      },
-      {
-        factor: 'High disease activity at presentation',
-        impact: 'negative',
-        description: 'Elevated inflammatory markers predict more aggressive disease course',
-      },
-      {
-        factor: 'Response to initial therapy',
-        impact: 'positive',
-        description: 'Good response within 3 months indicates favorable prognosis',
-      },
-      {
-        factor: 'Smoking history',
-        impact: 'negative',
-        description: 'Smoking associated with worse outcomes and reduced treatment efficacy',
-      },
-    ];
-  }
-
-  private generateMonitoringPlan(diagnosis: string): string[] {
-    return [
-      'Disease activity assessment every 1-3 months',
-      'Laboratory monitoring (CBC, LFTs, renal function) every 4-12 weeks',
-      'Radiographic assessment annually or as clinically indicated',
-      'Functional status assessment at each visit',
-      'Side effect monitoring and medication adherence review',
-      'Quality of life assessment using validated instruments',
-    ];
-  }
-
-  private generateFollowUpRecommendations(diagnosis: string): string[] {
-    return [
-      'Follow-up visit in 2-4 weeks after treatment initiation',
-      'Regular appointments every 3 months once stable',
-      'Urgent re-evaluation if symptoms worsen',
-      'Annual comprehensive disease assessment',
-      'Coordinate care with specialists as needed',
-      'Patient education and self-management support',
-    ];
-  }
-
-  private getClinicalPearls(diagnosis: string): string[] {
-    const pearls: Record<string, string[]> = {
-      'Rheumatoid Arthritis': [
-        'Early aggressive treatment improves long-term outcomes and prevents joint damage',
-        'Symmetric small joint involvement is a key diagnostic feature',
-        'Morning stiffness > 30 minutes is characteristic',
-        'Extra-articular manifestations may occur in severe disease',
-        'Treat-to-target approach with regular monitoring optimizes outcomes',
-      ],
-      'Inflammatory Bowel Disease (Crohn\'s)': [
-        'Can affect any part of the GI tract from mouth to anus',
-        'Skip lesions and transmural inflammation are characteristic',
-        'Fistulas and strictures are common complications',
-        'Smoking cessation critical for disease management',
-        'Early use of biologics may alter disease course in high-risk patients',
-      ],
+  private getSideEffects(drug: string): string[] {
+    const sideEffects: Record<string, string[]> = {
+      'warfarin': ['Bleeding', 'Skin necrosis', 'Purple toe syndrome'],
+      'lisinopril': ['Dry cough', 'Hyperkalemia', 'Angioedema', 'Hypotension'],
+      'metformin': ['Gastrointestinal upset', 'Lactic acidosis (rare)', 'Vitamin B12 deficiency']
     };
-    return pearls[diagnosis] || pearls['Rheumatoid Arthritis'];
+    
+    return sideEffects[drug] || [];
+  }
+
+  private getPatientEducation(drug: string, condition: string): string {
+    return `Take this medication as prescribed. Report any unusual symptoms. Regular monitoring is important for safe and effective treatment.`;
+  }
+
+  private getLifestyleEducation(lifestyle: string): string {
+    return `Incorporate ${lifestyle} into your daily routine. This is an important part of managing your condition effectively.`;
+  }
+
+  private getMonitoringEducation(monitoring: string): string {
+    return `Regular ${monitoring} is essential to track your progress and adjust treatment as needed.`;
+  }
+
+  private assessCostEffectiveness(drug: string): 'high' | 'moderate' | 'low' {
+    const highCostDrugs = ['newer anticoagulants', 'specialty medications'];
+    const moderateCostDrugs = ['ace inhibitors', 'statins'];
+    
+    if (highCostDrugs.some(costly => drug.toLowerCase().includes(costly))) return 'low';
+    if (moderateCostDrugs.some(moderate => drug.toLowerCase().includes(moderate))) return 'moderate';
+    return 'high';
   }
 }
 

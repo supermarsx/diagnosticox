@@ -1,365 +1,365 @@
-import { offlineStorage } from './offlineStorage';
-import { demoPatients, demoProblems, demoHypotheses, demoTimelineEvents, demoUser } from './demoData';
-import type { Patient, Problem, Hypothesis, Trial, TimelineEvent, DiaryEntry } from '../types/medical';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+import axios, { AxiosInstance, AxiosError } from 'axios';
+import { Patient, Problem, Diagnosis, Treatment, User } from '@/types/medical';
+import { offlineService } from './offlineService';
 
 class ApiService {
-  private token: string | null = null;
-  private isOnline: boolean = navigator.onLine;
+  private api: AxiosInstance;
+  private baseURL: string;
 
   constructor() {
-    this.token = localStorage.getItem('auth_token');
-    
-    // Monitor online/offline status
-    window.addEventListener('online', () => {
-      this.isOnline = true;
-      this.syncOfflineChanges();
+    this.baseURL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+    this.api = axios.create({
+      baseURL: this.baseURL,
+      timeout: 30000,
+      headers: {
+        'Content-Type': 'application/json',
+      },
     });
-    
-    window.addEventListener('offline', () => {
-      this.isOnline = false;
-    });
+
+    // Request interceptor for auth
+    this.api.interceptors.request.use(
+      (config) => {
+        const token = localStorage.getItem('auth_token');
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
+        return config;
+      },
+      (error) => {
+        return Promise.reject(error);
+      }
+    );
+
+    // Response interceptor for error handling
+    this.api.interceptors.response.use(
+      (response) => response,
+      (error: AxiosError) => {
+        if (error.response?.status === 401) {
+          // Token expired or invalid
+          localStorage.removeItem('auth_token');
+          window.location.href = '/login';
+        }
+        return Promise.reject(error);
+      }
+    );
   }
 
-  setToken(token: string) {
-    this.token = token;
-    localStorage.setItem('auth_token', token);
-  }
-
-  clearToken() {
-    this.token = null;
-    localStorage.removeItem('auth_token');
-  }
-
-  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-    const headers: HeadersInit = {
-      'Content-Type': 'application/json',
-      ...options.headers,
+  // Demo data for offline usage
+  private getDemoData<T>(key: string): T[] {
+    const demoData: Record<string, any[]> = {
+      patients: [
+        {
+          id: '1',
+          firstName: 'John',
+          lastName: 'Doe',
+          dateOfBirth: '1980-05-15',
+          gender: 'male',
+          email: 'john.doe@example.com',
+          phone: '+1234567890',
+          address: '123 Main St, Anytown, USA',
+          insuranceInfo: 'Insurance ID: 123456789',
+          emergencyContact: 'Jane Doe (Spouse): +1234567891',
+          medicalRecordNumber: 'MRN001',
+          createdAt: '2023-01-15T10:00:00Z',
+          updatedAt: '2023-12-01T14:30:00Z'
+        },
+        {
+          id: '2',
+          firstName: 'Jane',
+          lastName: 'Smith',
+          dateOfBirth: '1975-03-22',
+          gender: 'female',
+          email: 'jane.smith@example.com',
+          phone: '+1234567892',
+          address: '456 Oak Ave, Somewhere, USA',
+          insuranceInfo: 'Insurance ID: 987654321',
+          emergencyContact: 'Bob Smith (Husband): +1234567893',
+          medicalRecordNumber: 'MRN002',
+          createdAt: '2023-02-20T09:15:00Z',
+          updatedAt: '2023-11-28T16:45:00Z'
+        }
+      ],
+      problems: [
+        {
+          id: '1',
+          patientId: '1',
+          title: 'Hypertension',
+          description: 'High blood pressure readings over 140/90',
+          status: 'active',
+          priority: 'medium',
+          category: 'cardiovascular',
+          icd10Code: 'I10',
+          createdAt: '2023-03-10T10:00:00Z',
+          updatedAt: '2023-12-01T14:30:00Z'
+        },
+        {
+          id: '2',
+          patientId: '2',
+          title: 'Type 2 Diabetes',
+          description: 'Elevated blood glucose levels, HbA1c 7.8%',
+          status: 'active',
+          priority: 'high',
+          category: 'endocrine',
+          icd10Code: 'E11.9',
+          createdAt: '2023-04-15T11:00:00Z',
+          updatedAt: '2023-11-28T16:45:00Z'
+        }
+      ],
+      diagnoses: [
+        {
+          id: '1',
+          problemId: '1',
+          title: 'Essential Hypertension',
+          description: 'Primary hypertension without identifiable cause',
+          icd10Code: 'I10',
+          confidence: 0.95,
+          status: 'confirmed',
+          createdAt: '2023-03-10T10:30:00Z',
+          updatedAt: '2023-03-10T10:30:00Z'
+        }
+      ],
+      treatments: [
+        {
+          id: '1',
+          problemId: '1',
+          title: 'Lisinopril 10mg daily',
+          description: 'ACE inhibitor for blood pressure control',
+          status: 'active',
+          dosage: '10mg',
+          frequency: 'once daily',
+          startDate: '2023-03-11',
+          endDate: null,
+          prescriber: 'Dr. Smith',
+          createdAt: '2023-03-11T09:00:00Z',
+          updatedAt: '2023-12-01T14:30:00Z'
+        }
+      ]
     };
 
-    if (this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`;
-    }
+    return demoData[key] || [];
+  }
 
+  // Check if we're offline
+  private isOffline(): boolean {
+    return !navigator.onLine || offlineService.isOfflineMode();
+  }
+
+  // Generic API method with offline support
+  private async apiCall<T>(
+    method: 'GET' | 'POST' | 'PUT' | 'DELETE',
+    endpoint: string,
+    data?: any,
+    useDemoData: boolean = true
+  ): Promise<T> {
     try {
-      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-        ...options,
-        headers,
+      if (this.isOffline()) {
+        console.log('Offline mode: Using cached/demo data for', endpoint);
+        if (useDemoData) {
+          const key = endpoint.split('/')[1]; // Extract resource type from endpoint
+          const demoData = this.getDemoData<T>(key);
+          
+          // Store the request for later sync
+          await offlineService.storeRequest({
+            method,
+            endpoint,
+            data,
+            timestamp: Date.now()
+          });
+          
+          return demoData as T;
+        }
+        throw new Error('Offline mode: No demo data available');
+      }
+
+      const response = await this.api.request<T>({
+        method,
+        url: endpoint,
+        data
       });
 
-      if (!response.ok) {
-        if (response.status === 401) {
-          this.clearToken();
-          window.location.href = '/';
-          throw new Error('Unauthorized');
-        }
-        const error = await response.json();
-        throw new Error(error.error || 'Request failed');
-      }
-
-      return response.json();
+      return response.data;
     } catch (error) {
-      // If offline, try to get from IndexedDB
-      if (!this.isOnline) {
-        return this.handleOfflineRequest<T>(endpoint, options);
+      console.warn(`API call failed for ${endpoint}, trying offline mode:`, error);
+      
+      if (useDemoData) {
+        const key = endpoint.split('/')[1];
+        const demoData = this.getDemoData<T>(key);
+        return demoData as T;
       }
+      
       throw error;
     }
   }
 
-  private async handleOfflineRequest<T>(endpoint: string, options: RequestInit): Promise<T> {
-    // Try to serve GET requests from cache
-    if (!options.method || options.method === 'GET') {
-      if (endpoint.includes('/patients')) {
-        const patients = await offlineStorage.getPatients();
-        return { patients, total: patients.length } as any;
-      }
-      // Add more offline handlers as needed
-    }
-    
-    // Queue POST/PUT/DELETE for sync
-    if (options.method && ['POST', 'PUT', 'DELETE'].includes(options.method)) {
-      await offlineStorage.addToSyncQueue(options.method, {
-        endpoint,
-        body: options.body,
-      });
-    }
-    
-    throw new Error('No network connection');
-  }
-
-  private async syncOfflineChanges() {
-    const queue = await offlineStorage.getSyncQueue();
-    
-    for (const item of queue) {
-      try {
-        await this.request(item.data.endpoint, {
-          method: item.action,
-          body: item.data.body,
-        });
-      } catch (error) {
-        console.error('Sync failed for item:', item, error);
-      }
-    }
-    
-    await offlineStorage.clearSyncQueue();
-    offlineStorage.updateSyncTimestamp();
-  }
-
-  // Auth
-  async login(email: string, password: string) {
-    try {
-      const data = await this.request<{ user: any; token: string }>('/auth/login', {
-        method: 'POST',
-        body: JSON.stringify({ email, password }),
-      });
-      
-      this.setToken(data.token);
-      return data;
-    } catch (error) {
-      // Fallback to demo mode for production when backend is unavailable
-      console.warn('Backend unavailable, using demo mode');
-      const demoToken = 'demo-token-' + Date.now();
-      this.setToken(demoToken);
-      return { user: demoUser, token: demoToken };
-    }
-  }
-
-  async register(email: string, password: string, fullName: string, organizationId: string) {
-    const data = await this.request<{ user: any; token: string }>('/auth/register', {
-      method: 'POST',
-      body: JSON.stringify({ email, password, fullName, organizationId }),
-    });
-    
-    this.setToken(data.token);
-    return data;
-  }
-
-  // Patients
-  async getPatients(): Promise<{ patients: Patient[]; total: number }> {
-    try {
-      const data = await this.request<{ patients: Patient[]; total: number }>('/patients');
-      
-      // Cache in IndexedDB
-      if (data.patients) {
-        await offlineStorage.savePatients(data.patients);
-      }
-      
-      return data;
-    } catch (error) {
-      // Fallback to demo data when backend unavailable
-      console.warn('Using demo patients data');
-      return { patients: demoPatients as Patient[], total: demoPatients.length };
-    }
+  // Patient methods
+  async getPatients(): Promise<Patient[]> {
+    return this.apiCall<Patient[]>('GET', '/patients');
   }
 
   async getPatient(id: string): Promise<Patient> {
+    const patients = await this.getPatients();
+    const patient = patients.find(p => p.id === id);
+    if (!patient) {
+      throw new Error('Patient not found');
+    }
+    return patient;
+  }
+
+  async createPatient(patient: Omit<Patient, 'id' | 'createdAt' | 'updatedAt'>): Promise<Patient> {
+    return this.apiCall<Patient>('POST', '/patients', patient);
+  }
+
+  async updatePatient(id: string, patient: Partial<Patient>): Promise<Patient> {
+    return this.apiCall<Patient>('PUT', `/patients/${id}`, patient);
+  }
+
+  async deletePatient(id: string): Promise<void> {
+    return this.apiCall<void>('DELETE', `/patients/${id}`);
+  }
+
+  // Problem methods
+  async getProblems(patientId?: string): Promise<Problem[]> {
+    const endpoint = patientId ? `/problems?patientId=${patientId}` : '/problems';
+    return this.apiCall<Problem[]>('GET', endpoint);
+  }
+
+  async getProblem(id: string): Promise<Problem> {
+    const problems = await this.getProblems();
+    const problem = problems.find(p => p.id === id);
+    if (!problem) {
+      throw new Error('Problem not found');
+    }
+    return problem;
+  }
+
+  async createProblem(problem: Omit<Problem, 'id' | 'createdAt' | 'updatedAt'>): Promise<Problem> {
+    return this.apiCall<Problem>('POST', '/problems', problem);
+  }
+
+  async updateProblem(id: string, problem: Partial<Problem>): Promise<Problem> {
+    return this.apiCall<Problem>('PUT', `/problems/${id}`, problem);
+  }
+
+  async deleteProblem(id: string): Promise<void> {
+    return this.apiCall<void>('DELETE', `/problems/${id}`);
+  }
+
+  // Diagnosis methods
+  async getDiagnoses(problemId?: string): Promise<Diagnosis[]> {
+    const endpoint = problemId ? `/diagnoses?problemId=${problemId}` : '/diagnoses';
+    return this.apiCall<Diagnosis[]>('GET', endpoint);
+  }
+
+  async getDiagnosis(id: string): Promise<Diagnosis> {
+    const diagnoses = await this.getDiagnoses();
+    const diagnosis = diagnoses.find(d => d.id === id);
+    if (!diagnosis) {
+      throw new Error('Diagnosis not found');
+    }
+    return diagnosis;
+  }
+
+  async createDiagnosis(diagnosis: Omit<Diagnosis, 'id' | 'createdAt' | 'updatedAt'>): Promise<Diagnosis> {
+    return this.apiCall<Diagnosis>('POST', '/diagnoses', diagnosis);
+  }
+
+  async updateDiagnosis(id: string, diagnosis: Partial<Diagnosis>): Promise<Diagnosis> {
+    return this.apiCall<Diagnosis>('PUT', `/diagnoses/${id}`, diagnosis);
+  }
+
+  async deleteDiagnosis(id: string): Promise<void> {
+    return this.apiCall<void>('DELETE', `/diagnoses/${id}`);
+  }
+
+  // Treatment methods
+  async getTreatments(problemId?: string): Promise<Treatment[]> {
+    const endpoint = problemId ? `/treatments?problemId=${problemId}` : '/treatments';
+    return this.apiCall<Treatment[]>('GET', endpoint);
+  }
+
+  async getTreatment(id: string): Promise<Treatment> {
+    const treatments = await this.getTreatments();
+    const treatment = treatments.find(t => t.id === id);
+    if (!treatment) {
+      throw new Error('Treatment not found');
+    }
+    return treatment;
+  }
+
+  async createTreatment(treatment: Omit<Treatment, 'id' | 'createdAt' | 'updatedAt'>): Promise<Treatment> {
+    return this.apiCall<Treatment>('POST', '/treatments', treatment);
+  }
+
+  async updateTreatment(id: string, treatment: Partial<Treatment>): Promise<Treatment> {
+    return this.apiCall<Treatment>('PUT', `/treatments/${id}`, treatment);
+  }
+
+  async deleteTreatment(id: string): Promise<void> {
+    return this.apiCall<void>('DELETE', `/treatments/${id}`);
+  }
+
+  // User methods
+  async login(email: string, password: string): Promise<{ user: User; token: string }> {
+    return this.apiCall<{ user: User; token: string }>('POST', '/auth/login', { email, password });
+  }
+
+  async logout(): Promise<void> {
+    localStorage.removeItem('auth_token');
+    await this.apiCall<void>('POST', '/auth/logout');
+  }
+
+  async getCurrentUser(): Promise<User> {
+    return this.apiCall<User>('GET', '/auth/me');
+  }
+
+  // Sync methods for offline functionality
+  async syncOfflineData(): Promise<void> {
     try {
-      const patient = await this.request<Patient>(`/patients/${id}`);
-      return patient;
-    } catch (error) {
-      // Try offline cache
-      const cached = await offlineStorage.getPatient(id);
-      if (cached) return cached;
+      const requests = await offlineService.getPendingRequests();
       
-      // Fallback to demo data
-      const demoPatient = demoPatients.find(p => p.id === id);
-      if (demoPatient) {
-        console.warn('Using demo patient data for', id);
-        return demoPatient as Patient;
+      for (const request of requests) {
+        try {
+          await this.api.request({
+            method: request.method,
+            url: request.endpoint,
+            data: request.data
+          });
+          
+          // Mark request as synced
+          await offlineService.markRequestAsSynced(request.id);
+        } catch (error) {
+          console.error('Failed to sync request:', request, error);
+        }
       }
-      
-      throw error;
+    } catch (error) {
+      console.error('Failed to sync offline data:', error);
     }
   }
 
-  async createPatient(patient: Partial<Patient>): Promise<Patient> {
-    return this.request<Patient>('/patients', {
-      method: 'POST',
-      body: JSON.stringify(patient),
-    });
-  }
-
-  async updatePatient(id: string, updates: Partial<Patient>): Promise<Patient> {
-    return this.request<Patient>(`/patients/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(updates),
-    });
-  }
-
-  // Problems
-  async getProblems(patientId: string): Promise<{ problems: Problem[] }> {
+  // Health check
+  async healthCheck(): Promise<{ status: string; timestamp: string }> {
     try {
-      const data = await this.request<{ problems: Problem[] }>(`/problems?patientId=${patientId}`);
-      
-      if (data.problems) {
-        await offlineStorage.saveProblems(data.problems);
-      }
-      
-      return data;
+      const response = await this.api.get('/health');
+      return response.data;
     } catch (error) {
-      // Fallback to demo data
-      const demoProblemsForPatient = demoProblems.filter(p => p.patient_id === patientId);
-      console.warn('Using demo problems data for patient', patientId);
-      return { problems: demoProblemsForPatient as Problem[] };
+      return {
+        status: 'unhealthy',
+        timestamp: new Date().toISOString()
+      };
     }
-  }
-
-  async createProblem(problem: Partial<Problem>): Promise<Problem> {
-    return this.request<Problem>('/problems', {
-      method: 'POST',
-      body: JSON.stringify(problem),
-    });
-  }
-
-  async updateProblem(id: string, updates: Partial<Problem>): Promise<Problem> {
-    return this.request<Problem>(`/problems/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(updates),
-    });
-  }
-
-  // Hypotheses
-  async getHypotheses(problemId: string): Promise<{ hypotheses: Hypothesis[] }> {
-    try {
-      const data = await this.request<{ hypotheses: Hypothesis[] }>(`/problems/${problemId}/hypotheses`);
-      
-      if (data.hypotheses) {
-        await offlineStorage.saveHypotheses(data.hypotheses);
-      }
-      
-      return data;
-    } catch (error) {
-      // Fallback to demo data
-      const demoHypothesesForProblem = demoHypotheses.filter(h => h.problem_id === problemId);
-      console.warn('Using demo hypotheses data for problem', problemId);
-      return { hypotheses: demoHypothesesForProblem as any };
-    }
-  }
-
-  async createHypothesis(hypothesis: Partial<Hypothesis>): Promise<Hypothesis> {
-    return this.request<Hypothesis>('/hypotheses', {
-      method: 'POST',
-      body: JSON.stringify(hypothesis),
-    });
-  }
-
-  async updateHypothesis(id: string, updates: Partial<Hypothesis>): Promise<Hypothesis> {
-    return this.request<Hypothesis>(`/hypotheses/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(updates),
-    });
-  }
-
-  // Bayesian Calculator
-  async calculateBayesian(data: {
-    pretestProbability: number;
-    likelihoodRatioPositive?: number;
-    likelihoodRatioNegative?: number;
-    isPositive: boolean;
-  }) {
-    return this.request('/bayesian/calculate', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
-
-  async batchUpdateHypotheses(problemId: string, calculations: any[]) {
-    return this.request(`/bayesian/batch-update/${problemId}`, {
-      method: 'POST',
-      body: JSON.stringify({ calculations }),
-    });
-  }
-
-  // Trials
-  async getTrials(patientId: string): Promise<{ trials: Trial[] }> {
-    try {
-      const data = await this.request<{ trials: Trial[] }>(`/trials?patientId=${patientId}`);
-      
-      if (data.trials) {
-        await offlineStorage.saveTrials(data.trials);
-      }
-      
-      return data;
-    } catch (error) {
-      // Fallback to empty array for demo mode
-      console.warn('Using empty trials data for patient', patientId);
-      return { trials: [] };
-    }
-  }
-
-  async createTrial(trial: Partial<Trial>): Promise<Trial> {
-    return this.request<Trial>('/trials', {
-      method: 'POST',
-      body: JSON.stringify(trial),
-    });
-  }
-
-  async updateTrial(id: string, updates: Partial<Trial>): Promise<Trial> {
-    return this.request<Trial>(`/trials/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(updates),
-    });
-  }
-
-  // Timeline
-  async getTimelineEvents(patientId: string): Promise<{ events: TimelineEvent[] }> {
-    try {
-      const data = await this.request<{ events: TimelineEvent[] }>(`/timeline?patientId=${patientId}`);
-      
-      if (data.events) {
-        await offlineStorage.saveTimelineEvents(data.events);
-      }
-      
-      return data;
-    } catch (error) {
-      // Fallback to demo timeline events
-      const demoEventsForPatient = demoTimelineEvents.filter(e => e.patient_id === patientId);
-      console.warn('Using demo timeline events for patient', patientId);
-      return { events: demoEventsForPatient as any };
-    }
-  }
-
-  async createTimelineEvent(event: Partial<TimelineEvent>): Promise<TimelineEvent> {
-    return this.request<TimelineEvent>('/timeline', {
-      method: 'POST',
-      body: JSON.stringify(event),
-    });
-  }
-
-  // Diary
-  async getDiaryEntries(patientId: string): Promise<{ entries: DiaryEntry[] }> {
-    const data = await this.request<{ entries: DiaryEntry[] }>(`/diary?patientId=${patientId}`);
-    
-    if (data.entries) {
-      await offlineStorage.saveDiaryEntries(data.entries);
-    }
-    
-    return data;
-  }
-
-  async createDiaryEntry(entry: Partial<DiaryEntry>): Promise<DiaryEntry> {
-    const created = await this.request<DiaryEntry>('/diary', {
-      method: 'POST',
-      body: JSON.stringify(entry),
-    });
-    
-    // Also save to IndexedDB
-    await offlineStorage.addDiaryEntry(created);
-    
-    return created;
-  }
-
-  // Sync status
-  getSyncStatus() {
-    return offlineStorage.getSyncStatus();
-  }
-
-  isOffline() {
-    return !this.isOnline;
   }
 }
 
 export const apiService = new ApiService();
-export default apiService;
+
+// Initialize online/offline event listeners
+if (typeof window !== 'undefined') {
+  window.addEventListener('online', () => {
+    console.log('Connection restored, syncing offline data...');
+    apiService.syncOfflineData();
+  });
+
+  window.addEventListener('offline', () => {
+    console.log('Connection lost, switching to offline mode');
+  });
+}
