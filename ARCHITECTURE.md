@@ -50,410 +50,283 @@ DiagnosticoX is a modern, production-grade medical diagnosis platform built with
 - **PWA Features**: NotificationsCenter, RealtimeMonitoringPage, VoiceAssistantPage
 
 #### Components (`src/components/`)
-- **UI Library**: Shadcn/ui components (Badge, Card, Button, etc.)
-- **Medical Components**: AIDiagnosisPanel, ClinicalDecisionSupport, TimelineVisualization
-- **Feature Components**: UsageModeSwitcher, ErrorBoundary
+- **Core Components**: Reusable UI elements with medical theming
+- **AI Components**: Diagnosis panels, clinical decision support widgets
+- **Charts**: Recharts-based medical data visualization
+- **Forms**: Medical data entry with validation and FHIR compliance
 
-### 2. Business Logic Layer (Services)
+#### UI Library (`src/components/ui/`)
+- **ShadCN/UI Integration**: Accessible, customizable medical interface components
+- **Theme System**: Consistent medical application styling
+- **Responsive Design**: Mobile-first approach for clinical accessibility
+
+### 2. Service Layer (Business Logic)
 
 #### Core Medical Services
-```typescript
-src/services/
-├── icdService.ts              # WHO ICD-API integration
-├── dsm5Service.ts             # Psychiatric assessments
-├── symptomService.ts          # Symptom database
-├── vindicatemService.ts       # VINDICATE-M framework
-├── fhirService.ts             # FHIR R4 resources
-├── pubmedService.ts           # PubMed literature
-├── clinicalTrialsService.ts   # Clinical trials data
-├── drugBankService.ts         # Drug information
-└── aiProviderService.ts       # Multi-provider AI
+- **icdService.ts**: WHO ICD-API integration with OAuth 2.0
+- **dsm5Service.ts**: DSM-5-TR psychiatric assessments (PHQ-9, GAD-7, PC-PTSD-5)
+- **symptomService.ts**: Comprehensive symptom database with 2000+ entries
+- **vindicatemService.ts**: VINDICATE-M diagnostic framework
+- **fhirService.ts**: FHIR R4 resource creation and validation
+
+#### Advanced Services
+- **aiService.ts**: AI-powered diagnosis suggestions and treatment recommendations
+- **pubmedService.ts**: PubMed E-utilities integration for evidence-based research
+- **clinicalTrialsService.ts**: ClinicalTrials.gov integration
+- **drugBankService.ts**: Comprehensive medication database
+- **analyticsService.ts**: Medical analytics and insights
+
+#### Infrastructure Services
+- **cacheService.ts**: Multi-layer caching system (Memory + IndexedDB + Service Worker)
+- **crawlerService.ts**: Pre-emptive data crawling with priority queues
+- **cacheIntegration.ts**: Transparent caching wrapper for all services
+- **offlineStorage.ts**: IndexedDB management for offline functionality
+- **notificationService.ts**: Medical notifications and reminders
+
+### 3. Data Layer (State Management)
+
+#### Local State Management
+- **React Context**: Global application state
+- **Local Storage**: User preferences and session data
+- **React Query**: Server state management and caching
+- **Custom Hooks**: Reusable stateful logic
+
+#### Persistence Layer
+- **IndexedDB**: Offline medical data storage
+- **Service Worker**: Background sync and cache management
+- **Local Storage**: Non-sensitive user data
+- **Session Storage**: Temporary session data
+
+### 4. External Integration Layer
+
+#### Medical APIs
+- **WHO ICD-API**: OAuth 2.0 authenticated medical coding
+- **PubMed E-utilities**: Biomedical literature research
+- **ClinicalTrials.gov**: Treatment research and protocols
+- **DrugBank**: Comprehensive medication database
+- **AI Provider APIs**: OpenAI, Anthropic, local models
+
+#### Web Standards
+- **FHIR R4**: Healthcare interoperability
+- **SNOMED CT**: Clinical terminology
+- **LOINC**: Laboratory observations
+- **RxNorm**: Medication coding
+- **UMLS**: Unified medical language
+
+## Performance Architecture
+
+### Caching Strategy
+
+#### Multi-Layer Caching
+```
+┌─────────────────┐
+│   Application   │
+│      Layer      │
+│                 │
+│  React Context  │ ← Current session data
+│  Local Storage  │ ← User preferences
+└─────────────────┘
+        │
+        ▼
+┌─────────────────┐
+│  Memory Cache   │ ← LRU eviction
+│   (100 items)   │   In-memory storage
+└─────────────────┘
+        │
+        ▼
+┌─────────────────┐
+│   IndexedDB     │ ← Persistent storage
+│                 │   Large datasets
+│ - Medical Data  │   Offline capability
+│ - API Responses │
+└─────────────────┘
+        │
+        ▼
+┌─────────────────┐
+│  Service Worker │ ← Background cache
+│                 │   Network optimization
+│ - Offline       │   Pre-emptive fetching
+│ - Background    │
+│   Sync          │
+└─────────────────┘
 ```
 
-#### Caching Infrastructure
-```typescript
-src/services/
-├── cacheService.ts           # Multi-layer cache manager
-├── crawlerService.ts         # Pre-emptive crawler
-├── cacheIntegration.ts       # Transparent caching wrapper
-└── expandedSymptomDatabase.ts # 2000+ symptom taxonomy
-```
+#### Cache Categories
+- **ICD Codes**: 30-day TTL, high priority
+- **Symptoms**: 7-day TTL, medium priority  
+- **PubMed Data**: 24-hour TTL, low priority
+- **Drug Interactions**: 48-hour TTL, medium priority
+- **Clinical Trials**: 12-hour TTL, low priority
+- **AI Responses**: 1-hour TTL, high priority
 
-#### Supporting Services
-```typescript
-src/services/
-├── apiService.ts             # HTTP client
-├── offlineStorage.ts         # IndexedDB operations
-├── featureManager.ts         # Feature toggles
-├── analyticsService.ts       # Analytics data
-└── securityAPI.ts            # Security operations
-```
+### Pre-emptive Crawling
 
-### 3. Data Persistence Layer
+#### Background Processing
+- **Priority Queue**: HIGH, MEDIUM, LOW task prioritization
+- **Concurrent Processing**: Max 2 concurrent tasks
+- **Pattern Analysis**: Learning from user behavior
+- **Cache Warming**: Pre-populating likely-needed data
 
-#### Three-Tier Cache System
+#### Intelligent Prefetching
+- **Usage Patterns**: Learning common query sequences
+- **Medical Workflows**: Pre-fetching related medical data
+- **Seasonal Patterns**: Anticipating medical events
+- **User Preferences**: Personalized pre-fetching
 
-**Tier 1: Memory Cache**
-- **Purpose**: Ultra-fast access for hot data
-- **Technology**: JavaScript Map
-- **Capacity**: 100 entries (LRU eviction)
-- **Speed**: <1ms access time
-- **Lifespan**: Session-based
+## Security Architecture
 
-**Tier 2: IndexedDB Cache**
-- **Purpose**: Persistent storage for large datasets
-- **Technology**: IndexedDB (idb wrapper)
-- **Capacity**: ~50-100 MB (browser dependent)
-- **Speed**: 5-20ms access time
-- **Lifespan**: Persistent across sessions
+### Authentication & Authorization
 
-**Tier 3: Service Worker Cache**
-- **Purpose**: Offline capability and static assets
-- **Technology**: Cache API
-- **Capacity**: Browser managed
-- **Speed**: Network-dependent
-- **Lifespan**: Controlled by service worker
+#### Multi-Factor Authentication
+- **Primary Factor**: Username/password with bcrypt hashing
+- **Secondary Factor**: TOTP, SMS, or email verification
+- **Biometric**: Optional fingerprint/face recognition
+- **Session Management**: Secure token-based sessions
 
-#### TTL Strategy
+#### Role-Based Access Control
+- **Medical Roles**: Physician, Nurse, Specialist, Administrator
+- **Permission Levels**: Read, Write, Admin, Emergency Access
+- **Resource Permissions**: Patient data, analytics, settings
+- **Audit Logging**: All access tracked and logged
 
-| Category | TTL | Rationale |
-|----------|-----|-----------|
-| ICD Codes | 30 days | Rarely change, large dataset |
-| Symptoms | 7 days | Relatively stable |
-| PubMed | 24 hours | Frequently updated |
-| Drug Interactions | 48 hours | Moderate update frequency |
-| Clinical Trials | 12 hours | Rapidly changing |
-| DSM-5 | 7 days | Stable assessment tools |
-| FHIR | 24 hours | Session-based data |
+### Data Protection
 
-### 4. Background Processing
+#### Encryption
+- **In Transit**: TLS 1.3 for all communications
+- **At Rest**: AES-256 encryption for stored data
+- **Application**: End-to-end encryption for sensitive data
+- **Key Management**: Secure key rotation and storage
 
-#### Pre-emptive Crawler
+#### Compliance
+- **HIPAA**: Health Insurance Portability and Accountability Act
+- **GDPR**: General Data Protection Regulation
+- **HL7**: Healthcare data interchange standards
+- **SOC 2**: Security, availability, processing integrity
 
-**Purpose**: Predictive data fetching to reduce perceived latency
+### API Security
 
-**Components**:
-```typescript
-class CrawlerService {
-  - taskQueue: CrawlTask[]      // Priority queue
-  - maxConcurrent: 2             // Parallel tasks limit
-  - searchHistory: SearchPattern[] // User pattern tracking
-  - commonQueries: string[]      // Pre-defined common searches
-}
-```
+#### Rate Limiting
+- **User-Based**: Per-user request limits
+- **IP-Based**: Geographic and rate controls
+- **Medical APIs**: Compliance with provider limits
+- **Dynamic Limits**: Adaptive based on usage patterns
 
-**Priority Levels**:
-- **HIGH**: ICD lookups, DSM assessments, common symptoms (18 queries)
-- **MEDIUM**: PubMed articles, drug interactions (5-10 queries)
-- **LOW**: Historical searches, rare conditions (user-driven)
+#### Input Validation
+- **Schema Validation**: Zod schemas for all inputs
+- **Sanitization**: XSS and injection prevention
+- **Medical Data**: FHIR-compliant data validation
+- **Error Handling**: Secure error messages
 
-**Workflow**:
-1. Auto-start 2 seconds after app load
-2. Schedule 20-30 common medical queries
-3. Analyze user search patterns
-4. Predict and queue related searches
-5. Process queue with 2 concurrent workers
-6. Retry failed tasks (3 attempts max)
+## Scalability Architecture
 
-### 5. State Management
+### Frontend Scalability
 
-#### Approach: React Hooks + Context
+#### Code Splitting
+- **Route-Based**: Lazy loading for page components
+- **Feature-Based**: Dynamic imports for service modules
+- **Vendor Splitting**: Separate chunks for large libraries
+- **Medical Modules**: Specialized medical feature bundling
 
-**No global state library** (Redux, MobX) for simplicity
+#### Performance Optimization
+- **Bundle Analysis**: Rollup plugin for size monitoring
+- **Tree Shaking**: Unused code elimination
+- **Compression**: Gzip/Brotli for production builds
+- **CDN Integration**: Static asset distribution
 
-**State Organization**:
-```typescript
-// Local component state
-const [data, setData] = useState<Data[]>([]);
+### Data Scalability
 
-// Cross-component state
-const UserContext = React.createContext<User | null>(null);
+#### Offline-First Design
+- **Local-First**: Primary data source is local storage
+- **Background Sync**: Automatic data synchronization
+- **Conflict Resolution**: Merge strategies for concurrent edits
+- **Progressive Enhancement**: Core functionality without network
 
-// Cached API state (handled by cacheIntegration)
-const results = await cachedAPICall(key, category, fetcher);
-```
+#### Caching Optimization
+- **Cache Warming**: Predictive data loading
+- **Eviction Policies**: LRU with medical priority weighting
+- **Compression**: Efficient data storage
+- **Cleanup**: Automatic expired data removal
 
-### 6. Routing Architecture
+## Deployment Architecture
 
-**Client-Side Routing** with React Router v6
+### Build System
 
-**Route Structure**:
-```
-/                          → Dashboard (authenticated)
-/login                     → Login page
-/clinical/*                → Clinical tools (ICD, DSM-5, Symptoms, etc.)
-/analytics/*               → Analytics dashboards
-/security/*                → Security management
-/settings/*                → Settings and configuration
-/research                  → Medical research hub
-```
-
-**Route Guards**:
-```typescript
-<Route
-  path="/clinical/symptom-checker"
-  element={
-    user ? <SymptomCheckerPage /> : <Navigate to="/login" />
-  }
-/>
-```
-
-### 7. Build & Optimization
-
-#### Code Splitting Strategy
-
-**Vendor Chunks**:
-- `react-vendor.js` (957 KB): React, React-DOM
-- `router-vendor.js`: React Router
-- `radix-vendor.js`: Radix UI components
-- `charts-vendor.js` (12 KB): Charting libraries
-- `icons-vendor.js`: Lucide icons
-
-**Feature Chunks**:
-- `clinical-services.js` (30 KB): ICD, DSM-5, Symptoms
-- `research-services.js` (32 KB): PubMed, Trials, DrugBank
-- `ai-services.js` (17 KB): AI provider integration
-- `clinical-pages.js` (187 KB): Clinical UI pages
-- `analytics-pages.js` (292 KB): Analytics dashboards
-- `security-pages.js` (351 KB): Security features
-
-**Total Bundle**: 4.5 MB (optimized)
-
-#### Optimization Techniques
-
-**Vite Configuration**:
-```typescript
-build: {
-  rollupOptions: {
-    output: {
-      manualChunks: {
-        'react-vendor': ['react', 'react-dom'],
-        'clinical-services': ['./src/services/icdService', ...],
-        // ... 12 total chunks
-      }
-    }
-  },
-  minify: 'terser',
-  terserOptions: {
-    compress: { drop_console: true }
-  }
-}
-```
-
-**Tree Shaking**: Remove unused code
-**Terser Minification**: Aggressive compression
-**Gzip/Brotli**: Server-side compression ready
-**Lazy Loading**: Route-based code splitting
-
-### 8. Performance Monitoring
-
-#### Cache Metrics Dashboard
-
-**Real-Time Metrics**:
-- Hit Rate: (Hits / Total Requests) × 100
-- Memory Hit Rate: (Memory Hits / Memory Requests) × 100
-- Storage Usage: Used / Quota
-- Crawler Queue Size: Pending tasks
-- Active Tasks: Concurrent operations
-
-**Performance Targets**:
-- Cache Hit Rate: >70%
-- Memory Hit Rate: >85%
-- Cached Response Time: <10ms
-- API Reduction: 70%+
-
-#### Browser APIs Used
-
-**Storage Estimation**:
-```typescript
-const estimate = await navigator.storage.estimate();
-const usage = estimate.usage || 0;
-const quota = estimate.quota || 0;
-```
-
-**Service Worker Registration**:
-```typescript
-navigator.serviceWorker.register('/service-worker.js')
-```
-
-**IndexedDB**:
-```typescript
-const db = await openDB('diagnosticox-cache', 1, {
-  upgrade(db) {
-    const store = db.createObjectStore('cache', { keyPath: 'key' });
-    store.createIndex('by-category', 'category');
-  }
-});
-```
-
-### 9. Security Architecture
-
-#### Authentication Flow
-
-```
-1. User Login → API Auth
-2. Store JWT Token → localStorage
-3. Inject Token → All API Requests
-4. Token Validation → Per Request
-5. Token Expiry → Logout & Redirect
-```
-
-#### RBAC Implementation
-
-**8 Roles**:
-1. Super Admin (full access)
-2. Organization Admin
-3. Department Manager
-4. Physician
-5. Nurse Practitioner
-6. Nurse
-7. Medical Assistant
-8. Billing Specialist
-
-**25+ Permissions** across 5 categories:
-- Patient Management (4)
-- Clinical Operations (6)
-- Administrative (5)
-- Financial (4)
-- Reporting & Analytics (3)
-
-#### Data Protection
-
-**In Transit**: HTTPS/TLS 1.3
-**At Rest**: Browser storage (not encrypted by default)
-**Sensitive Data**: Should use client-side encryption
-**API Keys**: Environment variables (.env)
-
-### 10. Medical Standards Compliance
-
-#### HL7 FHIR R4
-
-**Supported Resources**:
-- Patient
-- Observation
-- Condition
-- MedicationRequest
-- DiagnosticReport
-- Bundle
-
-**Coding Systems**:
-- **SNOMED CT**: Clinical terms
-- **LOINC**: Lab observations
-- **RxNorm**: Medications
-- **ICD-10**: Diagnoses
-
-#### WHO ICD Classification
-
-**Integration**: OAuth 2.0 with WHO ICD-API
-**Versions**: ICD-10, ICD-11
-**Features**: Entity search, code lookup, post-coordination
-
-#### DSM-5-TR
-
-**Assessments**: PHQ-9, GAD-7, PC-PTSD-5
-**Standards**: APA psychiatric diagnostic criteria
-**Scoring**: Automated severity classification
-
-### 11. Deployment Architecture
-
-#### Production Environment
-
-**Build Process**:
-```bash
-pnpm install --frozen-lockfile
-pnpm run build:prod
-# → dist/ folder (static files)
-```
-
-**Hosting Options**:
-- Static hosting (Netlify, Vercel, GitHub Pages)
-- CDN distribution (CloudFront, Cloudflare)
-- Container deployment (Docker)
-- Traditional web servers (Nginx, Apache)
-
-**Environment Variables**:
-```env
-VITE_ICD_CLIENT_ID=...
-VITE_ICD_CLIENT_SECRET=...
-VITE_DRUGBANK_API_KEY=...
-VITE_OPENAI_API_KEY=...
-# ... 37 total environment variables
-```
+#### Vite Configuration
+- **Development**: Hot module replacement, fast builds
+- **Production**: Tree shaking, minification, compression
+- **Bundle Analysis**: Size monitoring and optimization
+- **Source Maps**: Debugging support
 
 #### CI/CD Pipeline
+- **Testing**: Jest, React Testing Library, E2E tests
+- **Linting**: ESLint, Prettier, TypeScript checks
+- **Security**: Dependency scanning, SAST analysis
+- **Deployment**: Automated staging and production deployment
 
-**GitHub Actions Workflow**:
-1. Code Quality (ESLint, Prettier, TypeScript)
-2. Tests (Unit, Integration, Coverage)
-3. Build (Production bundle)
-4. Security (npm audit, Snyk)
-5. Accessibility (WCAG 2.1 AA)
-6. Deploy (Staging/Production)
+### Environment Management
 
-### 12. Scalability Considerations
+#### Configuration
+- **Environment Variables**: Secure credential management
+- **Feature Flags**: Dynamic feature enabling
+- **Medical Settings**: Configurable clinical parameters
+- **Performance Tuning**: Cache and performance settings
 
-#### Frontend Scalability
+#### Monitoring
+- **Application Performance**: Real-time metrics and alerting
+- **User Analytics**: Medical workflow optimization
+- **Error Tracking**: Comprehensive error reporting
+- **Security Monitoring**: Threat detection and response
 
-**CDN Distribution**: Static assets served from edge locations
-**Code Splitting**: Lazy load features on demand
-**Cache Strategy**: Reduce API calls by 70%+
-**Service Worker**: Offline capability
+## API Architecture
 
-#### API Rate Limiting
+### External API Integration
 
-**Crawler Concurrency**: Limited to 2 parallel tasks
-**Request Delays**: 1 second between fetches
-**Retry Logic**: Exponential backoff
-**Respect API Limits**: PubMed (3-10 req/s), WHO ICD (OAuth token)
+#### Medical APIs
+- **Authentication**: OAuth 2.0, API keys, rate limiting
+- **Error Handling**: Retry logic, circuit breakers, fallbacks
+- **Data Transformation**: Medical standard compliance
+- **Caching**: Intelligent API response caching
 
-### 13. Technology Stack Summary
+#### API Security
+- **Request Signing**: Medical data integrity
+- **Certificate Pinning**: HTTPS security
+- **Response Validation**: Medical data accuracy
+- **Audit Logging**: All medical API interactions
 
-| Layer | Technology | Purpose |
-|-------|-----------|----------|
-| **UI** | React 18 | Component framework |
-| **Language** | TypeScript | Type safety |
-| **Build** | Vite | Fast build tool |
-| **Routing** | React Router v6 | Client-side routing |
-| **Styling** | Tailwind CSS | Utility-first CSS |
-| **State** | React Hooks | Local state management |
-| **HTTP** | Axios | API client |
-| **Cache** | IndexedDB (idb) | Persistent storage |
-| **PWA** | Service Worker | Offline support |
-| **Icons** | Lucide React | SVG icons |
-| **Charts** | Recharts | Data visualization |
-| **Forms** | React Hook Form | Form management |
-| **Validation** | Zod | Schema validation |
-| **Testing** | Jest + RTL | Unit/integration tests |
-| **Linting** | ESLint | Code quality |
-| **Formatting** | Prettier | Code formatting |
+### Internal API Design
 
-### 14. Future Architecture Enhancements
+#### RESTful Design
+- **Resource-Based**: Medical domain-driven design
+- **HTTP Methods**: Proper REST semantics
+- **Status Codes**: Medical error handling
+- **Versioning**: API evolution support
 
-**Planned Improvements**:
-- **SharedWorker**: Cross-tab cache sharing
-- **Web Workers**: CPU-intensive computations
-- **WebRTC**: Real-time collaboration
-- **GraphQL**: Efficient data querying
-- **Server-Side Rendering**: SEO optimization
-- **Edge Functions**: Serverless API layer
-- **Machine Learning**: On-device ML models
-- **WebAssembly**: Performance-critical code
+#### GraphQL (Optional)
+- **Flexible Queries**: Complex medical data retrieval
+- **Real-Time**: Subscription for live updates
+- **Type Safety**: Schema-driven development
+- **Medical Types**: Domain-specific type system
 
----
+## Future Architecture Considerations
 
-## Architecture Principles
+### Microservices Evolution
+- **Service Decomposition**: Scalable medical service modules
+- **Event-Driven**: Medical event sourcing and CQRS
+- **Message Queues**: Asynchronous medical processing
+- **Container Orchestration**: Kubernetes for medical workloads
 
-1. **Modular Design**: Loosely coupled components
-2. **Service-Oriented**: Independent service modules
-3. **Separation of Concerns**: Clear layer boundaries
-4. **Performance First**: Optimize for speed
-5. **Offline Capability**: PWA standards
-6. **Medical Standards**: FHIR, ICD, SNOMED compliance
-7. **Security by Design**: Privacy and data protection
-8. **Scalability**: Handle growing feature set
-9. **Maintainability**: Clean, documented code
-10. **Accessibility**: WCAG 2.1 AA compliance
+### AI/ML Integration
+- **Model Serving**: Distributed AI inference
+- **Feature Engineering**: Automated medical data preparation
+- **Model Monitoring**: AI performance and bias detection
+- **Privacy-Preserving**: Federated learning for medical data
+
+### Healthcare Integration
+- **HL7 FHIR**: Advanced healthcare interoperability
+- **EHR Integration**: Electronic Health Record systems
+- **Lab Systems**: Laboratory information systems
+- **Pharmacy Systems**: Medication management integration
 
 ---
 
-For questions about architecture decisions, see [CONTRIBUTING.md](CONTRIBUTING.md)
+**Architecture Summary**: DiagnosticoX implements a modern, scalable medical diagnosis platform with intelligent caching, pre-emptive data fetching, and comprehensive medical standards compliance. The architecture prioritizes performance, security, and clinical workflow efficiency while maintaining flexibility for future healthcare system integration.

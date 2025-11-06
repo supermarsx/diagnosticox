@@ -48,164 +48,214 @@ If you discover a security vulnerability in DiagnosticoX, please report it respo
 
 2. **API Keys**
    - Restrict API key permissions to minimum required
-   - Use different keys for development and production
    - Monitor API usage for anomalies
+   - Use environment-specific keys (dev, staging, production)
    - Revoke compromised keys immediately
 
-3. **Patient Data (PHI/PII)**
-   - **NEVER** use real patient data in development or testing
-   - Always use synthetic or anonymized data
-   - Comply with HIPAA, GDPR, and local regulations
-   - Implement proper access controls
-   - Encrypt sensitive data at rest and in transit
+3. **Medical Data Protection**
+   - Never use real patient data in examples or tests
+   - Implement proper data anonymization
+   - Follow HIPAA/GDPR compliance requirements
+   - Use encryption for all sensitive medical data
 
-4. **Authentication**
-   - Use strong passwords (minimum 12 characters)
-   - Enable multi-factor authentication (MFA)
-   - Implement session timeout
-   - Use secure session storage
-
-5. **Updates**
-   - Keep DiagnosticoX updated to latest version
-   - Update dependencies regularly
-   - Monitor security advisories
+4. **Access Control**
+   - Enable multi-factor authentication when available
+   - Use strong, unique passwords
+   - Implement proper session management
+   - Regularly review and update access permissions
 
 ### For Developers
 
 1. **Code Security**
    - Follow secure coding practices
-   - Avoid SQL injection, XSS, CSRF vulnerabilities
-   - Sanitize all user inputs
-   - Use prepared statements for database queries
-   - Implement rate limiting
+   - Use TypeScript strict mode for type safety
+   - Implement proper input validation and sanitization
+   - Use parameterized queries to prevent SQL injection
 
 2. **Dependency Management**
-   - Run `pnpm audit` regularly
-   - Update dependencies with known vulnerabilities
-   - Review dependency licenses
-   - Minimize dependency count
+   - Keep dependencies up to date
+   - Regularly run security audits (`pnpm audit`)
+   - Use lock files to ensure consistent dependency versions
+   - Review third-party code before integration
 
-3. **Authentication & Authorization**
-   - Implement proper RBAC (Role-Based Access Control)
-   - Use JWT with short expiration times
-   - Validate tokens on every request
-   - Implement refresh token rotation
+3. **Testing**
+   - Implement comprehensive security testing
+   - Test for common vulnerabilities (XSS, CSRF, injection)
+   - Use static code analysis tools
+   - Regular penetration testing for production deployments
 
-4. **Data Encryption**
-   - Use HTTPS/TLS for all communications
-   - Encrypt sensitive data at rest (AES-256)
-   - Use secure key management
-   - Implement proper certificate validation
+4. **Data Handling**
+   - Implement proper error handling without information leakage
+   - Use secure random number generation
+   - Implement proper session management
+   - Follow the principle of least privilege
 
-5. **Logging & Monitoring**
-   - Log security events
-   - Monitor for suspicious activity
-   - Implement alerting for security incidents
-   - **Never log sensitive information** (passwords, API keys, PHI)
+## Security Features
 
-## Known Security Considerations
+### Authentication
 
-### IndexedDB Storage
-- Data stored in IndexedDB is not encrypted by default
-- Consider implementing client-side encryption for sensitive data
-- IndexedDB data accessible to JavaScript in the same origin
-- Clear IndexedDB when handling real patient data
+- **Multi-Factor Authentication (MFA)**: Enhanced security for medical professionals
+- **Session Management**: Secure token-based sessions with proper expiration
+- **Password Security**: Bcrypt hashing with salt
+- **Rate Limiting**: Protection against brute force attacks
 
-### Cache System
-- Cached data stored in browser storage (memory + IndexedDB)
-- Cache may persist sensitive medical information
-- Implement cache clearing on logout
-- Consider TTL for sensitive data
+### Authorization
 
-### API Integration
-- WHO ICD-API requires OAuth 2.0 authentication
-- Store OAuth tokens securely
-- Implement token refresh mechanism
-- Never expose API keys in client-side code
+- **Role-Based Access Control (RBAC)**: Granular permissions based on medical roles
+- **Resource-Level Permissions**: Fine-grained access control
+- **API Security**: Authentication and authorization for all endpoints
+- **Audit Logging**: Comprehensive access tracking
 
-### Medical Data
-- Application handles medical terminology and codes
-- Does NOT process actual patient PHI by default
-- Users responsible for HIPAA/GDPR compliance
-- Implement proper consent management
+### Data Protection
 
-## Vulnerability Disclosure Policy
+- **Encryption**: TLS 1.3 for data in transit, AES-256 for data at rest
+- **Input Validation**: Comprehensive validation for all user inputs
+- **Output Encoding**: Proper encoding to prevent XSS attacks
+- **SQL Injection Prevention**: Parameterized queries and ORM usage
 
-We follow coordinated vulnerability disclosure:
+### Privacy
 
-1. **Private Disclosure**: Report privately to security team
-2. **Assessment**: We assess and develop fix
-3. **Coordinated Release**: Agree on disclosure timeline with reporter
-4. **Public Disclosure**: After fix is available and deployed
+- **Data Minimization**: Collect only necessary medical data
+- **Consent Management**: Proper consent tracking and management
+- **Data Retention**: Automatic cleanup of expired medical data
+- **Right to Deletion**: User data deletion capabilities
 
-## Security Updates
+## Medical Data Compliance
 
-Security updates are released as:
-- **Critical**: Immediate patch release
-- **High**: Within 7 days
-- **Medium**: Within 30 days
-- **Low**: Next regular release
+### HIPAA Compliance
 
-## Compliance
+- **Administrative Safeguards**: Access controls, workforce training, incident response
+- **Physical Safeguards**: Workstation access, media controls, facility access
+- **Technical Safeguards**: Access control, audit controls, integrity, transmission security
+- **Business Associate Agreements**: Required for third-party integrations
 
-DiagnosticoX aims to support compliance with:
+### GDPR Compliance
 
-### Healthcare Regulations
-- **HIPAA** (Health Insurance Portability and Accountability Act)
-- **HITECH** (Health Information Technology for Economic and Clinical Health)
-- **GDPR** (General Data Protection Regulation)
-- **PIPEDA** (Personal Information Protection and Electronic Documents Act)
+- **Lawful Basis**: Clear legal basis for medical data processing
+- **Data Subject Rights**: Access, rectification, erasure, portability, restriction
+- **Privacy by Design**: Built-in privacy protections
+- **Data Protection Impact Assessment**: For high-risk medical processing
 
-### Security Standards
-- **OWASP Top 10**: Address common web application vulnerabilities
-- **NIST Cybersecurity Framework**: Follow NIST guidelines
-- **SOC 2**: Security, availability, processing integrity
-- **ISO 27001**: Information security management
+### Medical Standards
 
-**Note**: DiagnosticoX provides tools to support compliance but users are
-responsible for implementing proper controls and procedures for their
-specific regulatory requirements.
+- **FHIR R4 Compliance**: Healthcare interoperability standards
+- **SNOMED CT Integration**: Clinical terminology standards
+- **HL7 Security**: Healthcare data interchange security
+- **Medical Device Regulation**: For embedded medical devices
 
-## Third-Party Dependencies
+## Security Incident Response
 
-We actively monitor dependencies for security vulnerabilities:
+### Incident Classification
 
-- Automated security scans via GitHub Dependabot
-- Regular manual audits
-- Prompt updates for security patches
-- Alternative packages evaluated when needed
+1. **Critical**: Active exploitation, data breach, system compromise
+2. **High**: Potential exploitation, vulnerability with high impact
+3. **Medium**: Security weakness without immediate exploitation
+4. **Low**: Informational security finding
 
-## Incident Response
+### Response Timeline
 
-In case of a security incident:
+- **Critical**: 4 hours acknowledgment, 24 hours initial response
+- **High**: 24 hours acknowledgment, 72 hours initial response
+- **Medium**: 48 hours acknowledgment, 7 days initial response
+- **Low**: 72 hours acknowledgment, 30 days initial response
 
-1. **Containment**: Immediately contain the issue
-2. **Assessment**: Assess scope and impact
-3. **Notification**: Notify affected users
-4. **Remediation**: Deploy fix
-5. **Post-Incident**: Review and improve processes
+### Containment and Recovery
 
-## Security Contact
+1. **Immediate Response**: System isolation, credential rotation
+2. **Investigation**: Root cause analysis, impact assessment
+3. **Remediation**: Patch deployment, configuration updates
+4. **Recovery**: Service restoration, monitoring enhancement
+5. **Post-Incident**: Lessons learned, process improvement
 
-For security concerns:
-- **Email**: [security@diagnosticox.com] (preferred)
-- **GitHub**: Create a private security advisory
-- **Response Time**: Within 48 hours
+## Security Headers
 
-## Acknowledgments
+### Recommended Headers
 
-We appreciate responsible disclosure and may publicly acknowledge security
-researchers who report valid vulnerabilities (with their permission).
+```
+Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'
+X-Frame-Options: DENY
+X-Content-Type-Options: nosniff
+Referrer-Policy: strict-origin-when-cross-origin
+Permissions-Policy: camera=(), microphone=(), geolocation=()
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+```
 
-## Medical Disclaimer
+### Medical Application Headers
 
-Security vulnerabilities that could affect patient safety are treated with
-highest priority. However, DiagnosticoX is NOT a certified medical device
-and should not be used for clinical decision-making without proper validation
-and professional oversight.
+```
+X-Medical-Compliance: HIPAA,GDPR
+X-Audit-Log: enabled
+X-Data-Classification: PHI
+X-Retention-Policy: 7years
+```
+
+## Security Monitoring
+
+### Log Monitoring
+
+- **Authentication Events**: Login attempts, failures, MFA challenges
+- **Authorization Events**: Permission checks, access denials
+- **Data Access Events**: Patient data access, modifications
+- **System Events**: API calls, performance anomalies, errors
+
+### Anomaly Detection
+
+- **Unusual Access Patterns**: Off-hours access, multiple failed attempts
+- **Data Exfiltration**: Large data downloads, unusual query patterns
+- **System Behavior**: Performance anomalies, resource usage spikes
+- **External Threats**: Failed authentication attempts, suspicious IP addresses
+
+### Alerting
+
+- **Real-Time Alerts**: Critical security events requiring immediate attention
+- **Daily Reports**: Security summary and trends
+- **Weekly Analysis**: Security posture assessment and recommendations
+- **Monthly Review**: Security metrics and compliance reporting
+
+## Security Training
+
+### For Users
+
+- **Security Awareness**: Medical data protection and privacy
+- **Password Security**: Best practices and management tools
+- **Phishing Recognition**: Email and social engineering awareness
+- **Incident Reporting**: How to report security concerns
+
+### For Developers
+
+- **Secure Coding**: OWASP Top 10 and medical software security
+- **Medical Data Handling**: HIPAA/GDPR compliance requirements
+- **Threat Modeling**: Identifying and mitigating security risks
+- **Security Testing**: Methods and tools for security validation
+
+## Third-Party Security
+
+### Dependency Security
+
+- **Vulnerability Scanning**: Automated scanning of dependencies
+- **License Compliance**: Ensuring compatible and secure licenses
+- **Supply Chain Security**: Verifying integrity of third-party packages
+- **Regular Updates**: Keeping dependencies current and secure
+
+### API Security
+
+- **Third-Party APIs**: Security assessment of external services
+- **Rate Limiting**: Protection against abuse and excessive usage
+- **Data Validation**: Ensuring integrity of external data
+- **Fallback Handling**: Graceful degradation when services are unavailable
+
+## Contact Information
+
+### Security Team
+- **Email**: security@diagnosticox.com
+- **PGP Key**: Available on our website
+- **Response Time**: See incident response timelines above
+
+### General Security Questions
+- **Documentation**: Comprehensive security documentation available
+- **Community**: Security discussions in GitHub Discussions
+- **Issues**: Security-related questions (not vulnerabilities)
 
 ---
 
-**Last Updated**: 2025-11-06
-
-For general questions not related to security, please use GitHub Issues or Discussions.
+**Remember**: Security is everyone's responsibility. If you see something, say something. Together, we can build a more secure medical diagnosis platform.
