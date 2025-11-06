@@ -48,234 +48,579 @@ export interface AIModel {
 /**
  * Medical prompt templates
  */
-export interface MedicalPromptTemplate {
-  type: 'differential_diagnosis' | 'symptom_analysis' | 'treatment_recommendation' | 'risk_assessment';
-  template: string;
-  variables: string[];
+export enum PromptTemplate {
+  DIFFERENTIAL_DIAGNOSIS = 'differential_diagnosis',
+  TREATMENT_RECOMMENDATION = 'treatment_recommendation',
+  DRUG_INTERACTION = 'drug_interaction',
+  CLINICAL_SUMMARY = 'clinical_summary',
+  PATIENT_EDUCATION = 'patient_education',
+  LITERATURE_SUMMARY = 'literature_summary',
+  RISK_ASSESSMENT = 'risk_assessment',
 }
 
 /**
- * AI request interface
- */
-export interface AIRequest {
-  prompt: string;
-  model?: AIModel;
-  maxTokens?: number;
-  temperature?: number;
-  systemMessage?: string;
-}
-
-/**
- * AI response interface
+ * AI response with metadata
  */
 export interface AIResponse {
   content: string;
   provider: AIProvider;
   model: string;
-  tokens: {
-    prompt: number;
-    completion: number;
-    total: number;
-  };
+  tokensUsed: number;
   cost: number;
   latency: number;
-  safetyScore: number;
-  medicalDisclaimer: boolean;
+  confidence?: number;
+  citations?: string[];
+  warnings?: string[];
 }
 
 /**
- * Multi-provider AI service
+ * Differential diagnosis from AI
  */
-class AIProviderService {
-  private currentProvider: AIProvider = AIProvider.AUTO;
-  private availableProviders = new Set<AIProvider>();
-  private models: AIModel[] = [
+export interface AIDifferentialDiagnosis {
+  diagnoses: Array<{
+    name: string;
+    confidence: number;
+    reasoning: string;
+    supportingEvidence: string[];
+    contradictingEvidence: string[];
+    recommendedTests: string[];
+    icd10Code?: string;
+  }>;
+  redFlags: string[];
+  urgency: 'emergency' | 'urgent' | 'routine';
+  disclaimer: string;
+}
+
+/**
+ * Medical AI Provider Service Configuration
+ */
+interface AIProviderConfig {
+  openai?: {
+    apiKey: string;
+    model: string;
+    baseUrl?: string;
+  };
+  anthropic?: {
+    apiKey: string;
+    model: string;
+    baseUrl?: string;
+  };
+  google?: {
+    apiKey: string;
+    model: string;
+    baseUrl?: string;
+  };
+  ollama?: {
+    baseUrl: string;
+    model: string;
+  };
+  defaultProvider: AIProvider;
+  timeout: number;
+  retries: number;
+  enableCostTracking: boolean;
+}
+
+/**
+ * Available AI models
+ */
+const AI_MODELS: Record<AIProvider, AIModel[]> = {
+  [AIProvider.OPENAI]: [
     {
       provider: AIProvider.OPENAI,
-      modelId: 'gpt-4-turbo',
-      maxTokens: 4096,
-      temperature: 0.1,
-      costPer1KTokens: 0.01
+      modelId: 'gpt-4-turbo-preview',
+      maxTokens: 128000,
+      temperature: 0.3,
+      costPer1KTokens: 0.01,
+    },
+    {
+      provider: AIProvider.OPENAI,
+      modelId: 'gpt-3.5-turbo',
+      maxTokens: 16385,
+      temperature: 0.3,
+      costPer1KTokens: 0.0005,
+    },
+  ],
+  [AIProvider.ANTHROPIC]: [
+    {
+      provider: AIProvider.ANTHROPIC,
+      modelId: 'claude-3-opus-20240229',
+      maxTokens: 200000,
+      temperature: 0.3,
+      costPer1KTokens: 0.015,
     },
     {
       provider: AIProvider.ANTHROPIC,
-      modelId: 'claude-3-sonnet',
-      maxTokens: 4096,
-      temperature: 0.1,
-      costPer1KTokens: 0.015
+      modelId: 'claude-3-sonnet-20240229',
+      maxTokens: 200000,
+      temperature: 0.3,
+      costPer1KTokens: 0.003,
     },
+  ],
+  [AIProvider.GOOGLE]: [
     {
       provider: AIProvider.GOOGLE,
       modelId: 'gemini-pro',
-      maxTokens: 4096,
-      temperature: 0.1,
-      costPer1KTokens: 0.008
+      maxTokens: 32760,
+      temperature: 0.3,
+      costPer1KTokens: 0.00025,
     },
+  ],
+  [AIProvider.OLLAMA]: [
     {
       provider: AIProvider.OLLAMA,
       modelId: 'llama2:70b',
-      maxTokens: 2048,
-      temperature: 0.1,
-      costPer1KTokens: 0 // Local model
-    }
-  ];
-
-  // Medical prompt templates
-  private promptTemplates: MedicalPromptTemplate[] = [
-    {
-      type: 'differential_diagnosis',
-      template: `You are a medical AI assistant. Analyze the following symptoms and provide a differential diagnosis. 
-      
-      Patient Information: {patient_info}
-      Symptoms: {symptoms}
-      Duration: {duration}
-      
-      Please provide:
-      1. Top 3 differential diagnoses with reasoning
-      2. Recommended next steps (tests/consultations)
-      3. Risk factors to consider
-      4. Important red flags to watch for
-      
-      Remember: This is for educational purposes only and should not replace professional medical advice.`,
-      variables: ['patient_info', 'symptoms', 'duration']
+      maxTokens: 4096,
+      temperature: 0.3,
+      costPer1KTokens: 0, // Local, no cost
     },
-    {
-      type: 'symptom_analysis',
-      template: `Analyze the following symptoms for potential medical significance:
-      
-      Symptoms: {symptoms}
-      Patient history: {history}
-      
-      Provide:
-      1. Symptom classification and urgency level
-      2. Possible underlying causes
-      3. When to seek immediate medical attention
-      4. Recommended self-care measures
-      
-      Always include appropriate medical disclaimers.`,
-      variables: ['symptoms', 'history']
-    },
-    {
-      type: 'treatment_recommendation',
-      template: `Based on the following diagnosis, provide treatment guidance:
-      
-      Diagnosis: {diagnosis}
-      Patient factors: {factors}
-      
-      Provide:
-      1. First-line treatment options
-      2. Lifestyle modifications
-      3. Monitoring recommendations
-      4. When to adjust treatment
-      5. Potential side effects to watch for
-      
-      Emphasize the importance of following up with healthcare providers.`,
-      variables: ['diagnosis', 'factors']
-    }
-  ];
+  ],
+  [AIProvider.AUTO]: [],
+};
 
-  constructor() {
-    this.initializeProviders();
+/**
+ * Medical prompt templates
+ */
+const PROMPT_TEMPLATES: Record<PromptTemplate, string> = {
+  [PromptTemplate.DIFFERENTIAL_DIAGNOSIS]: `You are a medical AI assistant specialized in differential diagnosis.
+
+Given the following patient presentation:
+
+Symptoms: {{symptoms}}
+Duration: {{duration}}
+Patient Demographics: {{demographics}}
+Medical History: {{history}}
+
+Provide a comprehensive differential diagnosis with:
+1. Top 5 most likely diagnoses with confidence scores (0-100)
+2. Supporting and contradicting evidence for each
+3. Recommended diagnostic tests
+4. Red flags requiring immediate attention
+5. Urgency level (emergency/urgent/routine)
+
+Format your response as JSON matching this structure:
+{
+  "diagnoses": [
+    {
+      "name": "Diagnosis name",
+      "confidence": 85,
+      "reasoning": "Clinical reasoning",
+      "supportingEvidence": ["Evidence 1", "Evidence 2"],
+      "contradictingEvidence": ["Evidence 1"],
+      "recommendedTests": ["Test 1", "Test 2"],
+      "icd10Code": "A00.0"
+    }
+  ],
+  "redFlags": ["Red flag 1", "Red flag 2"],
+  "urgency": "urgent",
+  "disclaimer": "This is AI-generated medical information..."
+}
+
+IMPORTANT: Always include appropriate medical disclaimers.`,
+
+  [PromptTemplate.TREATMENT_RECOMMENDATION]: `You are a medical AI assistant specialized in evidence-based treatment recommendations.
+
+Patient Diagnosis: {{diagnosis}}
+Comorbidities: {{comorbidities}}
+Current Medications: {{medications}}
+Contraindications: {{contraindications}}
+
+Provide treatment recommendations including:
+1. First-line treatments with evidence level
+2. Alternative treatments
+3. Medication dosing guidelines
+4. Monitoring requirements
+5. Expected outcomes
+6. Drug interactions to avoid
+
+Base all recommendations on current clinical guidelines and peer-reviewed evidence.`,
+
+  [PromptTemplate.DRUG_INTERACTION]: `You are a pharmaceutical AI assistant specialized in drug-drug interactions.
+
+Medications: {{medications}}
+
+Analyze potential interactions:
+1. Severity classification (contraindicated/major/moderate/minor)
+2. Mechanism of interaction
+3. Clinical manifestations
+4. Management recommendations
+5. Alternative medications if needed
+
+Provide evidence-based citations for significant interactions.`,
+
+  [PromptTemplate.CLINICAL_SUMMARY]: `You are a medical documentation AI assistant.
+
+Patient Data: {{patientData}}
+
+Generate a concise clinical summary including:
+1. Chief complaint
+2. History of present illness
+3. Assessment
+4. Plan
+5. Follow-up recommendations
+
+Use standard medical documentation format (SOAP or equivalent).`,
+
+  [PromptTemplate.PATIENT_EDUCATION]: `You are a patient education AI assistant.
+
+Medical Topic: {{topic}}
+Patient Education Level: {{educationLevel}}
+
+Create patient-friendly educational content:
+1. Explain the condition in simple terms
+2. Common symptoms and when to seek care
+3. Treatment options explained simply
+4. Lifestyle modifications
+5. FAQ section
+
+Use clear, empathetic language appropriate for {{educationLevel}} reading level.`,
+
+  [PromptTemplate.LITERATURE_SUMMARY]: `You are a medical literature AI assistant.
+
+Research Article: {{article}}
+
+Provide a structured summary:
+1. Study design and methodology
+2. Key findings
+3. Clinical implications
+4. Limitations
+5. Evidence level (GRADE or Oxford CEBM)
+6. Relevance to clinical practice
+
+Focus on actionable insights for clinicians.`,
+
+  [PromptTemplate.RISK_ASSESSMENT]: `You are a clinical risk assessment AI assistant.
+
+Patient Profile: {{patientProfile}}
+Risk Factors: {{riskFactors}}
+
+Assess risk for: {{condition}}
+
+Provide:
+1. Overall risk score (low/moderate/high)
+2. Contributing risk factors ranked by impact
+3. Modifiable vs non-modifiable factors
+4. Risk reduction strategies
+5. Screening recommendations
+6. Timeline for reassessment
+
+Use validated risk assessment tools when applicable.`,
+};
+
+/**
+ * Multi-Provider AI Service Class
+ */
+export class AIProviderService {
+  private config: AIProviderConfig;
+  private currentProvider: AIProvider;
+  private totalCost: number = 0;
+  private requestCount: number = 0;
+
+  constructor(config?: Partial<AIProviderConfig>) {
+    this.config = {
+      openai: {
+        apiKey: import.meta.env.VITE_OPENAI_API_KEY || '',
+        model: 'gpt-4-turbo-preview',
+        baseUrl: 'https://api.openai.com/v1',
+      },
+      anthropic: {
+        apiKey: import.meta.env.VITE_ANTHROPIC_API_KEY || '',
+        model: 'claude-3-sonnet-20240229',
+        baseUrl: 'https://api.anthropic.com/v1',
+      },
+      google: {
+        apiKey: import.meta.env.VITE_GOOGLE_API_KEY || '',
+        model: 'gemini-pro',
+        baseUrl: 'https://generativelanguage.googleapis.com/v1',
+      },
+      ollama: {
+        baseUrl: import.meta.env.VITE_OLLAMA_URL || 'http://localhost:11434',
+        model: 'llama2:70b',
+      },
+      defaultProvider: AIProvider.OPENAI,
+      timeout: 60000,
+      retries: 3,
+      enableCostTracking: true,
+      ...config,
+    };
+
+    this.currentProvider = this.config.defaultProvider;
   }
 
   /**
-   * Initialize available providers
-   */
-  private async initializeProviders(): Promise<void> {
-    // Check which providers are available
-    this.availableProviders.add(AIProvider.OPENAI); // Assume available if env vars present
-    this.availableProviders.add(AIProvider.ANTHROPIC);
-    this.availableProviders.add(AIProvider.GOOGLE);
-    this.availableProviders.add(AIProvider.OLLAMA);
-  }
-
-  /**
-   * Set current provider
+   * Set active AI provider
    */
   setProvider(provider: AIProvider): void {
     this.currentProvider = provider;
-    console.log(`[AIProviderService] Provider set to: ${provider}`);
   }
 
   /**
    * Get current provider
    */
-  getCurrentProvider(): AIProvider {
+  getProvider(): AIProvider {
     return this.currentProvider;
   }
 
   /**
-   * Get available providers
+   * Get available models for a provider
    */
-  getAvailableProviders(): AIProvider[] {
-    return Array.from(this.availableProviders);
+  getAvailableModels(provider?: AIProvider): AIModel[] {
+    return AI_MODELS[provider || this.currentProvider] || [];
   }
 
   /**
-   * Get model for provider
+   * Build prompt from template
+   * @private
    */
-  getModelForProvider(provider: AIProvider): AIModel | null {
-    return this.models.find(m => m.provider === provider) || null;
-  }
-
-  /**
-   * Send request to AI provider
-   */
-  async sendRequest(request: AIRequest): Promise<AIResponse> {
-    const startTime = Date.now();
-    const provider = request.model?.provider || this.currentProvider;
-    const model = request.model || this.getModelForProvider(provider);
+  private buildPrompt(template: PromptTemplate, variables: Record<string, any>): string {
+    let prompt = PROMPT_TEMPLATES[template];
     
-    if (!model) {
-      throw new Error(`No model available for provider: ${provider}`);
+    Object.entries(variables).forEach(([key, value]) => {
+      const placeholder = `{{${key}}}`;
+      prompt = prompt.replace(new RegExp(placeholder, 'g'), String(value));
+    });
+
+    return prompt;
+  }
+
+  /**
+   * Call OpenAI API
+   * @private
+   */
+  private async callOpenAI(prompt: string, model?: string): Promise<AIResponse> {
+    if (!this.config.openai?.apiKey) {
+      throw new Error('OpenAI API key not configured');
     }
 
-    try {
-      let response: string;
-      
-      switch (provider) {
-        case AIProvider.OPENAI:
-          response = await this.callOpenAI(request, model);
-          break;
-        case AIProvider.ANTHROPIC:
-          response = await this.callAnthropic(request, model);
-          break;
-        case AIProvider.GOOGLE:
-          response = await this.callGoogle(request, model);
-          break;
-        case AIProvider.OLLAMA:
-          response = await this.callOllama(request, model);
-          break;
-        case AIProvider.AUTO:
-          response = await this.callAuto(request);
-          break;
-        default:
-          throw new Error(`Unsupported provider: ${provider}`);
-      }
+    const startTime = Date.now();
+    const modelId = model || this.config.openai.model;
 
-      const latency = Date.now() - startTime;
-      const tokens = this.estimateTokens(response);
-      const cost = (tokens.completion / 1000) * model.costPer1KTokens;
-      const safetyScore = this.validateResponse(response);
-      
-      return {
-        content: response,
-        provider,
-        model: model.modelId,
-        tokens,
-        cost,
-        latency,
-        safetyScore,
-        medicalDisclaimer: true
-      };
-      
+    const response = await fetch(`${this.config.openai.baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.config.openai.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: modelId,
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a medical AI assistant. Provide evidence-based, accurate medical information with appropriate disclaimers.',
+          },
+          {
+            role: 'user',
+            content: prompt,
+          },
+        ],
+        temperature: 0.3,
+        max_tokens: 4000,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    const latency = Date.now() - startTime;
+    const tokensUsed = data.usage?.total_tokens || 0;
+    const cost = (tokensUsed / 1000) * 0.01; // Approximate cost
+
+    if (this.config.enableCostTracking) {
+      this.totalCost += cost;
+      this.requestCount++;
+    }
+
+    return {
+      content: data.choices[0]?.message?.content || '',
+      provider: AIProvider.OPENAI,
+      model: modelId,
+      tokensUsed,
+      cost,
+      latency,
+    };
+  }
+
+  /**
+   * Call Anthropic API
+   * @private
+   */
+  private async callAnthropic(prompt: string, model?: string): Promise<AIResponse> {
+    if (!this.config.anthropic?.apiKey) {
+      throw new Error('Anthropic API key not configured');
+    }
+
+    const startTime = Date.now();
+    const modelId = model || this.config.anthropic.model;
+
+    const response = await fetch(`${this.config.anthropic.baseUrl}/messages`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': this.config.anthropic.apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: modelId,
+        max_tokens: 4096,
+        messages: [
+          {
+            role: 'user',
+            content: prompt,
+          },
+        ],
+        temperature: 0.3,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Anthropic API error: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    const latency = Date.now() - startTime;
+    const tokensUsed = data.usage?.input_tokens + data.usage?.output_tokens || 0;
+    const cost = (tokensUsed / 1000) * 0.003;
+
+    if (this.config.enableCostTracking) {
+      this.totalCost += cost;
+      this.requestCount++;
+    }
+
+    return {
+      content: data.content[0]?.text || '',
+      provider: AIProvider.ANTHROPIC,
+      model: modelId,
+      tokensUsed,
+      cost,
+      latency,
+    };
+  }
+
+  /**
+   * Call Google Gemini API
+   * @private
+   */
+  private async callGoogle(prompt: string, model?: string): Promise<AIResponse> {
+    if (!this.config.google?.apiKey) {
+      throw new Error('Google API key not configured');
+    }
+
+    const startTime = Date.now();
+    const modelId = model || this.config.google.model;
+
+    const response = await fetch(
+      `${this.config.google.baseUrl}/models/${modelId}:generateContent?key=${this.config.google.apiKey}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                {
+                  text: prompt,
+                },
+              ],
+            },
+          ],
+          generationConfig: {
+            temperature: 0.3,
+            maxOutputTokens: 2048,
+          },
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Google API error: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    const latency = Date.now() - startTime;
+    const tokensUsed = data.usageMetadata?.totalTokenCount || 0;
+    const cost = (tokensUsed / 1000) * 0.00025;
+
+    if (this.config.enableCostTracking) {
+      this.totalCost += cost;
+      this.requestCount++;
+    }
+
+    return {
+      content: data.candidates[0]?.content?.parts[0]?.text || '',
+      provider: AIProvider.GOOGLE,
+      model: modelId,
+      tokensUsed,
+      cost,
+      latency,
+    };
+  }
+
+  /**
+   * Call Ollama local LLM
+   * @private
+   */
+  private async callOllama(prompt: string, model?: string): Promise<AIResponse> {
+    const startTime = Date.now();
+    const modelId = model || this.config.ollama?.model || 'llama2:70b';
+
+    const response = await fetch(`${this.config.ollama?.baseUrl}/api/generate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: modelId,
+        prompt,
+        stream: false,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Ollama API error: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    const latency = Date.now() - startTime;
+
+    return {
+      content: data.response || '',
+      provider: AIProvider.OLLAMA,
+      model: modelId,
+      tokensUsed: 0,
+      cost: 0, // Local model, no cost
+      latency,
+    };
+  }
+
+  /**
+   * Generate AI completion with automatic provider routing
+   */
+  async complete(prompt: string, provider?: AIProvider, model?: string): Promise<AIResponse> {
+    const targetProvider = provider || this.currentProvider;
+
+    try {
+      switch (targetProvider) {
+        case AIProvider.OPENAI:
+          return await this.callOpenAI(prompt, model);
+        case AIProvider.ANTHROPIC:
+          return await this.callAnthropic(prompt, model);
+        case AIProvider.GOOGLE:
+          return await this.callGoogle(prompt, model);
+        case AIProvider.OLLAMA:
+          return await this.callOllama(prompt, model);
+        default:
+          throw new Error(`Unsupported provider: ${targetProvider}`);
+      }
     } catch (error) {
-      console.error(`[AIProviderService] Error with provider ${provider}:`, error);
+      console.error(`AI provider ${targetProvider} failed:`, error);
       
-      // Automatic failover
-      if (provider !== AIProvider.AUTO) {
-        console.log('[AIProviderService] Attempting failover...');
-        return this.failover(request, provider);
+      // Attempt failover to alternate provider
+      if (targetProvider !== AIProvider.OLLAMA && this.config.ollama) {
+        console.log('Failing over to Ollama local model...');
+        return await this.callOllama(prompt, model);
       }
       
       throw error;
@@ -283,229 +628,65 @@ class AIProviderService {
   }
 
   /**
-   * Automatic provider selection
+   * Get differential diagnosis from AI
    */
-  private async callAuto(request: AIRequest): Promise<string> {
-    // Try providers in order of preference
-    const providers = [AIProvider.OPENAI, AIProvider.ANTHROPIC, AIProvider.GOOGLE];
-    
-    for (const provider of providers) {
-      if (this.availableProviders.has(provider)) {
-        try {
-          return await this.sendRequest({ ...request, model: this.getModelForProvider(provider) });
-        } catch (error) {
-          console.warn(`[AIProviderService] Provider ${provider} failed, trying next...`);
-          continue;
-        }
+  async getDifferentialDiagnosis(
+    symptoms: string[],
+    demographics: string,
+    history: string = '',
+    duration: string = ''
+  ): Promise<AIDifferentialDiagnosis> {
+    const prompt = this.buildPrompt(PromptTemplate.DIFFERENTIAL_DIAGNOSIS, {
+      symptoms: symptoms.join(', '),
+      demographics,
+      history,
+      duration,
+    });
+
+    const response = await this.complete(prompt);
+
+    try {
+      // Try to parse JSON response
+      const jsonMatch = response.content.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        return JSON.parse(jsonMatch[0]);
       }
-    }
-    
-    throw new Error('All providers failed');
-  }
-
-  /**
-   * Failover to other providers
-   */
-  private async failover(request: AIRequest, failedProvider: AIProvider): Promise<string> {
-    const availableProviders = this.getAvailableProviders().filter(p => p !== failedProvider);
-    
-    for (const provider of availableProviders) {
-      try {
-        const result = await this.sendRequest({ ...request, model: this.getModelForProvider(provider) });
-        return result.content;
-      } catch (error) {
-        console.warn(`[AIProviderService] Failover to ${provider} failed:`, error);
-        continue;
-      }
-    }
-    
-    throw new Error('All providers failed during failover');
-  }
-
-  /**
-   * Call OpenAI API
-   */
-  private async callOpenAI(request: AIRequest, model: AIModel): Promise<string> {
-    // Placeholder - would implement actual OpenAI API call
-    await this.simulateAPICall();
-    return this.generateSampleResponse('OpenAI', request.prompt);
-  }
-
-  /**
-   * Call Anthropic API
-   */
-  private async callAnthropic(request: AIRequest, model: AIModel): Promise<string> {
-    // Placeholder - would implement actual Anthropic API call
-    await this.simulateAPICall();
-    return this.generateSampleResponse('Anthropic', request.prompt);
-  }
-
-  /**
-   * Call Google API
-   */
-  private async callGoogle(request: AIRequest, model: AIModel): Promise<string> {
-    // Placeholder - would implement actual Google API call
-    await this.simulateAPICall();
-    return this.generateSampleResponse('Google', request.prompt);
-  }
-
-  /**
-   * Call Ollama (local LLM)
-   */
-  private async callOllama(request: AIRequest, model: AIModel): Promise<string> {
-    // Placeholder - would implement actual Ollama API call
-    await this.simulateAPICall();
-    return this.generateSampleResponse('Ollama', request.prompt);
-  }
-
-  /**
-   * Simulate API call (placeholder)
-   */
-  private async simulateAPICall(): Promise<void> {
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
-  }
-
-  /**
-   * Generate sample response (placeholder)
-   */
-  private generateSampleResponse(provider: string, prompt: string): string {
-    return `This is a sample response from ${provider} AI model.\n\nGiven the prompt: "${prompt.substring(0, 100)}..."\n\nThis would normally be a comprehensive medical analysis. For this demo, please note that this is a placeholder response and should be replaced with actual AI API integration.`;
-  }
-
-  /**
-   * Estimate token count
-   */
-  private estimateTokens(text: string): { prompt: number; completion: number; total: number } {
-    // Rough estimate: 1 token ≈ 4 characters for English text
-    const total = Math.ceil(text.length / 4);
-    const completion = total;
-    const prompt = 0; // This would be calculated from the actual prompt
-    
-    return { prompt, completion, total };
-  }
-
-  /**
-   * Validate response for medical safety
-   */
-  private validateResponse(response: string): number {
-    let score = 0.5; // Base score
-    
-    // Check for medical disclaimers
-    if (response.toLowerCase().includes('disclaimer') || 
-        response.toLowerCase().includes('not a substitute for professional medical advice')) {
-      score += 0.3;
-    }
-    
-    // Check for appropriate medical language
-    if (response.toLowerCase().includes('consult') || 
-        response.toLowerCase().includes('seek medical attention') ||
-        response.toLowerCase().includes('healthcare provider')) {
-      score += 0.2;
-    }
-    
-    // Penalize for definitive diagnostic claims
-    if (response.toLowerCase().includes('definitely') ||
-        response.toLowerCase().includes('certainly has') ||
-        response.toLowerCase().includes('must be')) {
-      score -= 0.3;
-    }
-    
-    return Math.max(0, Math.min(1, score));
-  }
-
-  /**
-   * Get medical prompt template
-   */
-  getPromptTemplate(type: MedicalPromptTemplate['type']): MedicalPromptTemplate | null {
-    return this.promptTemplates.find(t => t.type === type) || null;
-  }
-
-  /**
-   * Fill prompt template
-   */
-  fillPromptTemplate(template: string, variables: Record<string, string>): string {
-    let filled = template;
-    Object.entries(variables).forEach(([key, value]) => {
-      filled = filled.replace(new RegExp(`{${key}}`, 'g'), value);
-    });
-    return filled;
-  }
-
-  /**
-   * Get differential diagnosis
-   */
-  async getDifferentialDiagnosis(symptoms: string, patientInfo?: string): Promise<AIResponse> {
-    const template = this.getPromptTemplate('differential_diagnosis');
-    if (!template) {
-      throw new Error('Differential diagnosis template not found');
+    } catch (error) {
+      console.error('Failed to parse AI response as JSON:', error);
     }
 
-    const filledPrompt = this.fillPromptTemplate(template.template, {
-      patient_info: patientInfo || 'Not provided',
-      symptoms,
-      duration: 'Not specified'
-    });
-
-    return this.sendRequest({
-      prompt: filledPrompt,
-      temperature: 0.1,
-      systemMessage: 'You are a medical AI assistant designed to provide educational information. Always include appropriate disclaimers and recommend consulting healthcare professionals.'
-    });
-  }
-
-  /**
-   * Analyze symptoms
-   */
-  async analyzeSymptoms(symptoms: string, history?: string): Promise<AIResponse> {
-    const template = this.getPromptTemplate('symptom_analysis');
-    if (!template) {
-      throw new Error('Symptom analysis template not found');
-    }
-
-    const filledPrompt = this.fillPromptTemplate(template.template, {
-      symptoms,
-      history: history || 'Not provided'
-    });
-
-    return this.sendRequest({
-      prompt: filledPrompt,
-      temperature: 0.1
-    });
-  }
-
-  /**
-   * Get treatment recommendations
-   */
-  async getTreatmentRecommendation(diagnosis: string, patientFactors?: string): Promise<AIResponse> {
-    const template = this.getPromptTemplate('treatment_recommendation');
-    if (!template) {
-      throw new Error('Treatment recommendation template not found');
-    }
-
-    const filledPrompt = this.fillPromptTemplate(template.template, {
-      diagnosis,
-      factors: patientFactors || 'Not provided'
-    });
-
-    return this.sendRequest({
-      prompt: filledPrompt,
-      temperature: 0.1
-    });
+    // Fallback: Return structured error response
+    return {
+      diagnoses: [],
+      redFlags: [],
+      urgency: 'routine',
+      disclaimer: 'AI analysis failed. Please consult a healthcare professional.',
+    };
   }
 
   /**
    * Get usage statistics
    */
-  getUsageStatistics(): any {
+  getUsageStats(): { totalCost: number; requestCount: number; avgCostPerRequest: number } {
     return {
-      currentProvider: this.currentProvider,
-      availableProviders: Array.from(this.availableProviders),
-      models: this.models,
-      templates: this.promptTemplates.map(t => t.type)
+      totalCost: this.totalCost,
+      requestCount: this.requestCount,
+      avgCostPerRequest: this.requestCount > 0 ? this.totalCost / this.requestCount : 0,
     };
+  }
+
+  /**
+   * Reset usage statistics
+   */
+  resetUsageStats(): void {
+    this.totalCost = 0;
+    this.requestCount = 0;
   }
 }
 
-// Export singleton instance
-export default new AIProviderService();
+/**
+ * Default AI provider service instance
+ */
+export const aiProviderService = new AIProviderService();
+
+export default AIProviderService;
