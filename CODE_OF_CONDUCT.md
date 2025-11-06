@@ -20,7 +20,7 @@ community include:
 * Demonstrating empathy and kindness toward other people
 * Being respectful of differing opinions, viewpoints, and experiences
 * Giving and gracefully accepting constructive feedback
-* Accepting responsibility and apologizing to those affected by our mistakes,
+* Accepting responsibility and apologizing for those affected by our mistakes,
   and learning from the experience
 * Focusing on what is best not just for us as individuals, but for the overall
   community
@@ -115,8 +115,8 @@ ban.
 sustained inappropriate behavior.
 
 **Consequence**: A temporary ban from any sort of interaction or public
-communication with the community for a specified period of time. No public or
-private interaction with the people involved, including unsolicited interaction
+communication with the community for a specified period of time. No public
+or private interaction with the people involved, including unsolicited interaction
 with those enforcing the Code of Conduct, is allowed during this period.
 Violating these terms may lead to a permanent ban.
 
