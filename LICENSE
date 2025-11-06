@@ -1,0 +1,90 @@
+MIT License
+
+Copyright (c) 2025 DiagnosticoX Contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+## Medical Disclaimer
+
+DiagnosticoX is a diagnostic support tool designed to assist healthcare
+professionals and should not be used as a substitute for professional medical
+advice, diagnosis, or treatment. 
+
+**IMPORTANT DISCLAIMER:**
+
+1. **Not a Medical Device**: DiagnosticoX is not a certified medical device and
+   has not been evaluated by any regulatory authority (FDA, EMA, etc.) for 
+   clinical use.
+
+2. **Professional Consultation Required**: Always seek the advice of a qualified
+   healthcare provider with any questions regarding a medical condition.
+
+3. **No Warranties**: The medical information provided is for informational and
+   educational purposes only. No warranties are made regarding accuracy,
+   completeness, or clinical validity.
+
+4. **AI Limitations**: AI-generated content may contain errors. All AI-generated
+   diagnoses, recommendations, or information must be verified by qualified
+   healthcare professionals.
+
+5. **Emergency Situations**: Never rely on this software for emergency medical
+   situations. Call emergency services (911 in the US, 112 in Europe) or go to
+   the nearest emergency department immediately.
+
+6. **Data Privacy**: Users are responsible for ensuring compliance with
+   applicable healthcare data protection regulations (HIPAA, GDPR, etc.) when
+   using this software with real patient data.
+
+7. **No Liability**: The developers, contributors, and maintainers of
+   DiagnosticoX assume no liability for any clinical decisions made based on
+   information provided by this software.
+
+8. **Validation Required**: Any clinical implementation requires thorough
+   validation, testing, and approval by appropriate clinical governance and
+   regulatory bodies.
+
+## Third-Party Medical Data
+
+This software integrates with various medical databases and APIs:
+- WHO ICD Classification (ICD-10, ICD-11)
+- SNOMED CT Clinical Terms
+- LOINC Laboratory Observations
+- RxNorm Medication Database
+- PubMed Medical Literature
+- ClinicalTrials.gov Database
+
+Users must comply with the terms of service and licensing requirements of these
+third-party services.
+
+## Regulatory Compliance
+
+Users implementing this software in clinical settings are responsible for:
+- Compliance with local healthcare regulations
+- HIPAA compliance (United States)
+- GDPR compliance (European Union)
+- Medical device regulations (if applicable)
+- Clinical governance and audit requirements
+- Professional liability and malpractice insurance
+
+## Contributions
+
+By contributing to this project, contributors agree that their contributions
+will be licensed under the same MIT License.
