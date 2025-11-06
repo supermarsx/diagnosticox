@@ -1,5 +1,4 @@
 // Notification Service - Push notifications and medical reminders
-
 export interface MedicalNotification {
   id: string;
   title: string;
