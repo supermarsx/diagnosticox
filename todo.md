@@ -8,13 +8,12 @@ Comprehensive build plan derived from `spec.md`. Organize into phases; mark item
 - [x] Auth/OIDC: PKCE flow, JWT validation with org_id + roles claims; session cache (Redis); idempotency key middleware. (Implemented + tests)
 - [ ] Multi-tenancy & RLS: CockroachDB schema with org_id + patient_id composites; per-role policies; seed org/admin user.
 - [ ] Core entities: organizations, users, patients, problems, facts tables with validation; migrations + Prisma/TypeORM models.
-- [x] Problem list API: CRUD for patients, problems, facts; ETag/If-Match support; pagination + filters.
-- [ ] Frontend shell: Vite/React app frame, routing, layout, theme tokens; TanStack Query + auth context + error boundaries.
+ - [x] Problem list API: CRUD for patients, problems, facts; ETag/If-Match support; pagination + filters.
  - [ ] Frontend shell: Vite/React app frame, routing, layout, theme tokens; TanStack Query + auth context + error boundaries.
-	 - [x] PKCE client helpers added to `apiService` (`pkceStart`/`pkceComplete`)
-	 - [x] `AuthContext` exposes `pkceLogin` helper
-	 - [x] `LoginPage` adds a PKCE demo sign-in button
-	 - [x] Admin sessions UI integration & tests added
+  - [x] PKCE client helpers added to `apiService` (`pkceStart`/`pkceComplete`)
+  - [x] `AuthContext` exposes `pkceLogin` helper
+  - [x] `LoginPage` adds a PKCE demo sign-in button
+  - [x] Admin sessions UI integration & tests added
 - [ ] Patient list + overview UI: org/site filters, status chips, problem summaries; tie into patients/facts APIs.
 - [ ] Logging & tracing base: structured JSON logger (pino) implemented; correlation IDs / structured request logging middleware added; OpenTelemetry tracing wiring planned. Note: console.* replaced across backend seeds, migrations, RBAC and security controller.
 - [ ] CI bootstrap: lint/test/build jobs; Docker Compose dev stack (db, redis, minio stub).
