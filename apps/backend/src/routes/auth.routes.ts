@@ -161,8 +161,8 @@ router.post('/token/revoke', async (req, res) => {
     let targetSession: string | null = sessionId || null;
 
     if (!targetSession && refresh) {
-      const s = await cacheService.get(`refresh:${refresh}`);
-      if (s) targetSession = s;
+      const found = await refreshTokenService.findByToken(refresh as string);
+      if (found) targetSession = found.session_id as string;
     }
 
     if (!targetSession) return res.status(400).json({ error: 'Missing token/sessionId' });

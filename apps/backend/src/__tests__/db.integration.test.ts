@@ -6,6 +6,7 @@
  */
 import request from 'supertest';
 import app from '../index';
+import { refreshTokenService } from '../services/refreshToken.service';
 
 describe('DB-backed integration', () => {
   test('bootstrap admin -> create patient -> fetch patient', async () => {
@@ -20,6 +21,16 @@ describe('DB-backed integration', () => {
     expect(bootstrapRes.body).toHaveProperty('token');
 
     const token = bootstrapRes.body.token;
+    const refreshToken = bootstrapRes.body.refreshToken;
+
+    // verify refresh token persisted in DB
+    const found = await refreshTokenService.findByToken(refreshToken);
+    expect(found).not.toBeNull();
+
+    // Revoke via API and re-check DB row is marked revoked
+    await request(app).post('/api/auth/token/revoke').send({ refreshToken }).expect(200);
+    const foundAfter = await refreshTokenService.findByToken(refreshToken);
+    expect(foundAfter.revoked === 1 || foundAfter.revoked === true).toBeTruthy();
 
     // Create a patient
     const newPatient = {
