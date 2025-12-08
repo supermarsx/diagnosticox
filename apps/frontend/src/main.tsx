@@ -6,6 +6,7 @@ import App from './App.tsx'
 import './services/i18n'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider } from './contexts/AuthContext'
+import { initTracing } from './services/tracing';
 
 const queryClient = new QueryClient();
 
@@ -20,3 +21,6 @@ createRoot(document.getElementById('root')!).render(
     </ErrorBoundary>
   </StrictMode>,
 )
+
+// initialize optional frontend tracing (non-blocking)
+initTracing().catch(() => {});

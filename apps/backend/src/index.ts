@@ -12,6 +12,7 @@ process.env.TZ = process.env.TZ || 'UTC';
  */
 import express from 'express';
 import { logger } from './services/logger.service';
+import { initTracing } from './services/tracing.service';
 import cors from 'cors';
 import helmet from 'helmet';
 import { config } from './config';
@@ -49,7 +50,8 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.text({ type: 'text/csv', limit: '5mb' }));
 
-// Correlation ID + structured request logging
+// Initialize tracing (optional) and attach correlation ID + structured request logging
+initTracing().catch((err) => logger.warn({ err }, 'Tracing init failed'));
 app.use(requestContext);
 
 // Health check

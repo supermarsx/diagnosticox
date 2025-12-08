@@ -56,6 +56,39 @@ class ApiService {
 
     if (this.token) {
       headers['Authorization'] = `Bearer ${this.token}`;
+
+      // Enrich outgoing requests with tracing + session context when available
+      try {
+        // decode JWT payload without verifying to extract sessionId and organizationId
+        const parts = this.token.split('.');
+        const base64UrlDecode = (s: string) => {
+          const base64 = s.replace(/-/g, '+').replace(/_/g, '/');
+          if (typeof (globalThis as any).atob === 'function') return (globalThis as any).atob(base64);
+          return Buffer.from(base64, 'base64').toString('utf8');
+        };
+
+        if (parts.length === 3) {
+          const payload = JSON.parse(base64UrlDecode(parts[1]));
+          if (payload?.sessionId) headers['X-Session-Id'] = payload.sessionId;
+          if (payload?.organizationId) headers['X-Org-Id'] = payload.organizationId;
+        }
+
+        // try to get active span context and add traceparent header
+        try {
+          // dynamic import to avoid bundling when not used
+          // eslint-disable-next-line @typescript-eslint/no-var-requires
+          const api = await import('@opentelemetry/api');
+          const span = api.trace.getSpan(api.context.active());
+          const sc = span?.spanContext();
+          if (sc && sc.traceId && sc.spanId) {
+            headers['traceparent'] = `00-${sc.traceId}-${sc.spanId}-01`;
+          }
+        } catch (_) {
+          // tracing not available — do nothing
+        }
+      } catch (err) {
+        // ignore token parse/tracing enrich failures
+      }
     }
 
     try {

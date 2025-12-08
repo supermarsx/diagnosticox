@@ -29,4 +29,7 @@ export const config = {
   cors: {
     allowedOrigins: (process.env.ALLOWED_ORIGINS || 'http://localhost:5173').split(','),
   },
+  tracing: {
+    enabled: (process.env.TRACING_ENABLED || 'false') === 'true',
+  },
 };
