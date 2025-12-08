@@ -18,7 +18,26 @@ Headers and context
 Next steps (recommended)
 - Wire an OTLP exporter in backend (e.g., OTLP gRPC/HTTP to a collector) and configure env-protected endpoint
 - Add sampling / resource attributes (service name, env, version)
-- Add a centralized tracing dashboard (Jaeger/Tempo/OTEL collector) and CI smoke test to ensure traces flow
+ - Add a centralized tracing dashboard (Jaeger/Tempo/OTEL collector) and CI smoke test to ensure traces flow
+
+ 
+CI smoke test
+
+- A GitHub Actions workflow has been added at `.github/workflows/tracing-smoke.yml` that boots a Jaeger all-in-one container, starts the backend with `TRACING_ENABLED=true` and `TRACING_OTLP_ENDPOINT=http://localhost:4318/v1/traces`, triggers an instrumented endpoint and queries the Jaeger API to assert traces were ingested. This provides a simple end-to-end check that tracing and OTLP export are wired correctly in CI.
+
+Local developer testing
+
+You can run the local tracing/dev infra with docker-compose (file at `docker-compose.dev.yml`) and then start the backend pointing to the local jaeger collector:
+
+```pwsh
+docker compose -f docker-compose.dev.yml up -d
+# In another shell
+$env:TRACING_ENABLED='true'
+$env:TRACING_OTLP_ENDPOINT='http://localhost:4318/v1/traces'
+pnpm --filter diagnosticox-backend dev
+```
+
+Then visit Jaeger's UI at http://localhost:16686 to inspect traces and spans.
 
 Notes
 - The tracing bootstraps use dynamic imports (try/catch) so missing packages do not break the app. Install the required packages and configure exporters for full tracing.

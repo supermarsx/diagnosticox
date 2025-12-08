@@ -1,0 +1,46 @@
+name: Tracing smoke test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  tracing-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Install pnpm
+        run: npm install -g pnpm@8
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Start Jaeger all-in-one
+        run: |
+          docker run -d --rm --name jaeger -p 4318:4318 -p 16686:16686 jaegertracing/all-in-one:1.41
+
+      - name: Start backend (tracing enabled)
+        env:
+          TRACING_ENABLED: 'true'
+          TRACING_OTLP_ENDPOINT: 'http://localhost:4318/v1/traces'
+        run: |
+          pnpm --filter diagnosticox-backend dev &
+          echo "backend started"
+
+      - name: Run tracing smoke test
+        run: node ./scripts/tracing-smoke-test.js
+
+      - name: Cleanup Jaeger container
+        if: always()
+        run: docker stop jaeger || true

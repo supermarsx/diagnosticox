@@ -1,0 +1,85 @@
+#!/usr/bin/env node
+/**
+ * CI smoke test to verify traces are exported to a Jaeger collector
+ * Steps:
+ *  - poll /health until backend is available
+ *  - invoke an endpoint that is instrumented to create spans
+ *  - wait a short while to allow exporter to ship spans
+ *  - query the Jaeger API for traces for the service
+ */
+const fetch = globalThis.fetch || require('node-fetch');
+
+const BACKEND = process.env.BACKEND_URL || 'http://localhost:3000';
+const JAEGER_UI = process.env.JAEGER_API || 'http://localhost:16686';
+
+async function waitFor(url, timeout = 30000) {
+  const start = Date.now();
+  while (Date.now() - start < timeout) {
+    try {
+      const r = await fetch(url);
+      if (r.ok) return true;
+    } catch (err) {
+      // ignore
+    }
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+  return false;
+}
+
+async function main() {
+  console.log('Waiting for backend health...');
+  const up = await waitFor(`${BACKEND}/health`, 30000);
+  if (!up) {
+    console.error('Backend health check failed');
+    process.exit(2);
+  }
+
+  // create a simple register request that will generate a trace
+  const uniq = Date.now().toString(36);
+  const registerBody = {
+    email: `smoke-${uniq}@example.com`,
+    password: 'Password123!',
+    full_name: `Smoke Test ${uniq}`,
+    organization_id: `org-${uniq}`,
+  };
+
+  console.log('Triggering instrumented endpoint (register)...');
+  const resp = await fetch(`${BACKEND}/api/auth/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(registerBody),
+  });
+
+  if (![200,201].includes(resp.status)) {
+    console.warn('Register endpoint returned non-success: ', resp.status);
+  }
+
+  // wait a bit for exporter to send the span
+  console.log('Waiting for traces to be exported (10s)...');
+  await new Promise((r) => setTimeout(r, 10000));
+
+  // query Jaeger API for traces for service name 'diagnosticox-backend'
+  const apiUrl = `${JAEGER_UI}/api/traces?service=diagnosticox-backend&limit=20`;
+  console.log('Querying Jaeger API at:', apiUrl);
+
+  try {
+    const jresp = await fetch(apiUrl);
+    if (!jresp.ok) {
+      console.error('Failed to query Jaeger API', jresp.status);
+      process.exit(3);
+    }
+    const payload = await jresp.json();
+    const data = payload?.data || [];
+    if (Array.isArray(data) && data.length > 0) {
+      console.log('Found traces in Jaeger — Smoke test SUCCESS');
+      process.exit(0);
+    }
+    console.error('No traces found for service diagnosticox-backend');
+    process.exit(4);
+  } catch (err) {
+    console.error('Error querying Jaeger API:', err?.message || err);
+    process.exit(5);
+  }
+}
+
+main();
