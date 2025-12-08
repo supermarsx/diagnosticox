@@ -10,7 +10,8 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { icdService, ICDSearchResult, ICDConcept } from '../services/icdService';
-import { Search, BookOpen, ArrowRight, AlertCircle } from 'lucide-react';
+import { Search, BookOpen, ArrowRight, AlertCircle, Stethoscope, Activity } from 'lucide-react';
+import { searchICD10Local, getICD10Local } from '../lib/icd10Local';
 
 interface SearchState {
   query: string;
@@ -22,6 +23,7 @@ interface SearchState {
 
 interface ConceptDetailState {
   concept: ICDConcept | null;
+  icd10Detail?: ReturnType<typeof getICD10Local>;
   loading: boolean;
   error: string | null;
 }
@@ -65,10 +67,18 @@ export const ICDLookupPage: React.FC = () => {
           loading: false,
         }));
       } else {
-        // ICD-10-CM search (would integrate with NLM API or similar)
+        const results = searchICD10Local(search.query).map((entry) => ({
+          id: entry.code,
+          title: entry.title,
+          theCode: entry.code,
+          chapter: entry.chapter,
+          score: 1,
+          titleIsASearchResult: true,
+          titleIsTopScore: true,
+        }));
         setSearch(prev => ({
           ...prev,
-          error: 'ICD-10-CM search coming soon - requires NLM API integration',
+          results,
           loading: false,
         }));
       }
@@ -86,14 +96,20 @@ export const ICDLookupPage: React.FC = () => {
    */
   const handleViewDetails = async (entityId: string) => {
     setSelectedEntity(entityId);
-    setConceptDetail({ concept: null, loading: true, error: null });
+    setConceptDetail({ concept: null, icd10Detail: undefined, loading: true, error: null });
 
     try {
-      const concept = await icdService.getICD11Concept(entityId);
-      setConceptDetail({ concept, loading: false, error: null });
+      if (search.version === 'icd11') {
+        const concept = await icdService.getICD11Concept(entityId);
+        setConceptDetail({ concept, icd10Detail: undefined, loading: false, error: null });
+      } else {
+        const detail = getICD10Local(entityId) || undefined;
+        setConceptDetail({ concept: null, icd10Detail: detail, loading: false, error: null });
+      }
     } catch (error) {
       setConceptDetail({
         concept: null,
+        icd10Detail: undefined,
         loading: false,
         error: error instanceof Error ? error.message : 'Failed to load details',
       });
@@ -223,6 +239,9 @@ export const ICDLookupPage: React.FC = () => {
                             </p>
                           )}
                         </div>
+                        {search.version === 'icd10' && (
+                          <span className="glass-badge text-2xs text-emerald-200">Symptoms linked</span>
+                        )}
                         <ArrowRight className="w-5 h-5 text-gray-400" />
                       </div>
                     </div>
@@ -352,7 +371,58 @@ export const ICDLookupPage: React.FC = () => {
                 </div>
               )}
 
-              {!conceptDetail.concept && !conceptDetail.loading && !conceptDetail.error && (
+              {!conceptDetail.concept && conceptDetail.icd10Detail && (
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="text-lg font-bold text-white mb-1">
+                      {conceptDetail.icd10Detail.title}
+                    </h3>
+                    <p className="text-sm text-gray-300">
+                      {conceptDetail.icd10Detail.code} · {conceptDetail.icd10Detail.chapter}
+                    </p>
+                  </div>
+
+                  {conceptDetail.icd10Detail.commonSymptoms && (
+                    <div>
+                      <h4 className="font-semibold text-blue-300 mb-2 flex items-center gap-2">
+                        <Activity className="h-4 w-4" />
+                        Linked symptoms
+                      </h4>
+                      <div className="flex flex-wrap gap-2">
+                        {conceptDetail.icd10Detail.commonSymptoms.map((s) => (
+                          <span
+                            key={s}
+                            className="px-2 py-1 text-xs bg-emerald-500/20 text-emerald-200 rounded"
+                          >
+                            {s}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {conceptDetail.icd10Detail.synonyms && conceptDetail.icd10Detail.synonyms.length > 0 && (
+                    <div>
+                      <h4 className="font-semibold text-blue-300 mb-2 flex items-center gap-2">
+                        <Stethoscope className="h-4 w-4" />
+                        Synonyms
+                      </h4>
+                      <div className="flex flex-wrap gap-2">
+                        {conceptDetail.icd10Detail.synonyms.map((syn) => (
+                          <span
+                            key={syn}
+                            className="px-2 py-1 text-xs bg-purple-500/20 text-purple-200 rounded"
+                          >
+                            {syn}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {!conceptDetail.concept && !conceptDetail.icd10Detail && !conceptDetail.loading && !conceptDetail.error && (
                 <div className="text-center py-8 text-gray-400">
                   <p>Select a code to view details</p>
                 </div>

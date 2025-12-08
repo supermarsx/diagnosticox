@@ -11,6 +11,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { dsm5Service, PHQ9Item, GAD7Item, PHQ9Result, GAD7Result } from '../services/dsm5Service';
 import { Brain, Heart, AlertTriangle, CheckCircle2, TrendingUp } from 'lucide-react';
+import { psychometricTests } from '../data/psychometricTests';
 
 type AssessmentType = 'phq9' | 'gad7' | 'pcptsd5';
 
@@ -135,6 +136,37 @@ export const DSM5AssessmentsPage: React.FC = () => {
           <p className="text-gray-300">
             Evidence-based screening tools for depression, anxiety, and PTSD
           </p>
+        </div>
+
+        {/* Psychometric catalog */}
+        <div className="glass-card p-6 mb-8">
+          <div className="flex items-center gap-2 mb-4">
+            <Brain className="h-5 w-5 text-indigo-300" />
+            <h2 className="text-lg font-semibold text-white">Psychometric Toolkit</h2>
+            <span className="glass-badge text-xs">{psychometricTests.length} instruments</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {psychometricTests.map((test) => (
+              <div key={test.id} className="glass-card-subtle p-4 rounded-xl">
+                <div className="flex items-center justify-between mb-2">
+                  <div>
+                    <p className="text-xs text-gray-400">{test.domain}</p>
+                    <h3 className="text-base font-semibold text-white">{test.name}</h3>
+                  </div>
+                  <span className="text-2xs text-gray-300">{test.items} items</span>
+                </div>
+                <p className="text-xs text-gray-300 mb-1">Scale: {test.scale}</p>
+                {test.cutoff && <p className="text-xs text-gray-300 mb-2">Cutoff: {test.cutoff}</p>}
+                <div className="flex flex-wrap gap-2">
+                  {test.useCases.map((use) => (
+                    <span key={use} className="glass-chip text-2xs">
+                      {use}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
         {!assessment.showResults ? (

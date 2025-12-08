@@ -31,6 +31,7 @@
 - Bias guardrails: `GET /api/bias/patient/:patientId`; record checkpoint via `POST /api/bias` with guardrail type, checkpoint question, alternatives/disconfirming evidence.
 - Facts: `GET /api/facts/patient/:patientId` to list clinical signals; create/update/delete via `POST /api/facts`, `PUT /api/facts/:id`, `DELETE /api/facts/:id` (admin/clinician writes, admin delete).
 - Export: `GET /api/export/patient/:patientId?format=json|csv` returns patient bundle (JSON) or facts CSV; scoped to caller org.
+- FHIR (Phase 2 stub): `GET /api/fhir/patients/:patientId/observations|conditions` maps internal facts/problems to FHIR resources; `POST /api/fhir/observations` ingests an Observation into facts (admin/clinician).
 
 ## Environment
 - JWT secret: `JWT_SECRET`
