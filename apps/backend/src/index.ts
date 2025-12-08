@@ -15,6 +15,7 @@ import biasRoutes from './routes/bias.routes';
 import factRoutes from './routes/fact.routes';
 import exportRoutes from './routes/export.routes';
 import fhirRoutes from './routes/fhir.routes';
+import importRoutes from './routes/import.routes';
 
 const app = express();
 
@@ -45,6 +46,7 @@ app.use('/api/bias', biasRoutes);
 app.use('/api/facts', factRoutes);
 app.use('/api/export', exportRoutes);
 app.use('/api/fhir', fhirRoutes);
+app.use('/api/import', importRoutes);
 app.use('/api/security', securityRoutes);
 
 // Error handling

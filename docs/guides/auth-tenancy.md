@@ -32,6 +32,7 @@
 - Facts: `GET /api/facts/patient/:patientId` to list clinical signals; create/update/delete via `POST /api/facts`, `PUT /api/facts/:id`, `DELETE /api/facts/:id` (admin/clinician writes, admin delete).
 - Export: `GET /api/export/patient/:patientId?format=json|csv` returns patient bundle (JSON) or facts CSV; scoped to caller org.
 - FHIR (Phase 2 stub): `GET /api/fhir/patients/:patientId/observations|conditions` maps internal facts/problems to FHIR resources; `POST /api/fhir/observations` ingests an Observation into facts (admin/clinician).
+- Import (CSV): `POST /api/import/facts` with `text/csv` body (headers: patient_id,problem_id,fact_type,measurement_name,measurement_value,measurement_unit,value_text,measured_at,source); org/patient scoped and audited.
 
 ## Environment
 - JWT secret: `JWT_SECRET`
