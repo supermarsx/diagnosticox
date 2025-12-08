@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { getDatabase } from '../config/database';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { ensurePatientAccessible } from '../utils/tenancy';
+import { writeAuditLog } from '../utils/audit';
 
 export class TimelineController {
   private db = getDatabase();
@@ -74,6 +75,18 @@ export class TimelineController {
       );
 
       const event = await this.db.get('SELECT * FROM timeline_events WHERE id = ?', [id]);
+
+      await writeAuditLog({
+        organizationId,
+        userId,
+        patientId: patient_id,
+        table: 'timeline_events',
+        recordId: id,
+        action: 'create',
+        changes: { event_type, event_name },
+        ip: req.ip,
+        userAgent: req.get('user-agent') || undefined,
+      });
 
       res.status(201).json(event);
     } catch (error: any) {

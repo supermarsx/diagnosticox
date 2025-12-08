@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { getDatabase } from '../config/database';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { ensurePatientAccessible } from '../utils/tenancy';
+import { writeAuditLog } from '../utils/audit';
 
 export class ProblemController {
   private db = getDatabase();
@@ -99,6 +100,18 @@ export class ProblemController {
 
       const problem = await this.db.get('SELECT * FROM problems WHERE id = ?', [id]);
 
+      await writeAuditLog({
+        organizationId,
+        userId,
+        patientId: patient_id,
+        table: 'problems',
+        recordId: id,
+        action: 'create',
+        changes: { problem_name, problem_type },
+        ip: req.ip,
+        userAgent: req.get('user-agent') || undefined,
+      });
+
       res.status(201).json(problem);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -153,6 +166,17 @@ export class ProblemController {
       );
 
       const problem = await this.db.get('SELECT * FROM problems WHERE id = ?', [id]);
+
+      await writeAuditLog({
+        organizationId,
+        userId: req.user?.userId,
+        table: 'problems',
+        recordId: id,
+        action: 'update',
+        changes: updates,
+        ip: req.ip,
+        userAgent: req.get('user-agent') || undefined,
+      });
 
       res.json(problem);
     } catch (error: any) {

@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { getDatabase } from '../config/database';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { ensurePatientAccessible } from '../utils/tenancy';
+import { writeAuditLog } from '../utils/audit';
 
 export class TreatmentTrialController {
   private db = getDatabase();
@@ -119,6 +120,18 @@ export class TreatmentTrialController {
 
       const trial = await this.db.get('SELECT * FROM treatment_trials WHERE id = ?', [id]);
 
+      await writeAuditLog({
+        organizationId,
+        userId,
+        patientId: patient_id,
+        table: 'treatment_trials',
+        recordId: id,
+        action: 'create',
+        changes: { trial_name, intervention },
+        ip: req.ip,
+        userAgent: req.get('user-agent') || undefined,
+      });
+
       res.status(201).json(trial);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -174,6 +187,17 @@ export class TreatmentTrialController {
 
       const trial = await this.db.get('SELECT * FROM treatment_trials WHERE id = ?', [id]);
 
+      await writeAuditLog({
+        organizationId,
+        userId: req.user?.userId,
+        table: 'treatment_trials',
+        recordId: id,
+        action: 'update',
+        changes: updates,
+        ip: req.ip,
+        userAgent: req.get('user-agent') || undefined,
+      });
+
       res.json(trial);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -224,6 +248,17 @@ export class TreatmentTrialController {
       );
 
       const metric = await this.db.get('SELECT * FROM trial_metrics WHERE id = ?', [id]);
+
+      await writeAuditLog({
+        organizationId,
+        userId: req.user?.userId,
+        table: 'trial_metrics',
+        recordId: id,
+        action: 'create',
+        changes: { metric_name, metric_value },
+        ip: req.ip,
+        userAgent: req.get('user-agent') || undefined,
+      });
 
       res.status(201).json(metric);
     } catch (error: any) {

@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { getDatabase } from '../config/database';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { ensurePatientAccessible } from '../utils/tenancy';
+import { writeAuditLog } from '../utils/audit';
 
 export class DiaryController {
   private db = getDatabase();
@@ -94,6 +95,18 @@ export class DiaryController {
       );
 
       const entry = await this.db.get('SELECT * FROM patient_diary WHERE id = ?', [id]);
+
+      await writeAuditLog({
+        organizationId,
+        userId: req.user?.userId,
+        patientId: patient_id,
+        table: 'patient_diary',
+        recordId: id,
+        action: 'create',
+        changes: { entry_type, symptom_name, severity },
+        ip: req.ip,
+        userAgent: req.get('user-agent') || undefined,
+      });
 
       res.status(201).json(entry);
     } catch (error: any) {

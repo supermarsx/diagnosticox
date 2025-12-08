@@ -4,6 +4,7 @@ import { getDatabase } from '../config/database';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { Patient } from '../types';
 import { ensurePatientAccessible } from '../utils/tenancy';
+import { writeAuditLog } from '../utils/audit';
 
 export class PatientController {
   private db = getDatabase();
@@ -100,6 +101,18 @@ export class PatientController {
 
       const patient = await this.db.get('SELECT * FROM patients WHERE id = ?', [id]);
 
+      await writeAuditLog({
+        organizationId,
+        userId: req.user?.userId,
+        patientId: id,
+        table: 'patients',
+        recordId: id,
+        action: 'create',
+        changes: { mrn, first_name, last_name, date_of_birth },
+        ip: req.ip,
+        userAgent: req.get('user-agent') || undefined,
+      });
+
       res.status(201).json(patient);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -160,6 +173,18 @@ export class PatientController {
 
       const patient = await this.db.get('SELECT * FROM patients WHERE id = ?', [id]);
 
+      await writeAuditLog({
+        organizationId,
+        userId: req.user?.userId,
+        patientId: id,
+        table: 'patients',
+        recordId: id,
+        action: 'update',
+        changes: updates,
+        ip: req.ip,
+        userAgent: req.get('user-agent') || undefined,
+      });
+
       res.json(patient);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -181,6 +206,17 @@ export class PatientController {
       }
 
       await this.db.execute('DELETE FROM patients WHERE id = ?', [id]);
+
+      await writeAuditLog({
+        organizationId,
+        userId: req.user?.userId,
+        patientId: id,
+        table: 'patients',
+        recordId: id,
+        action: 'delete',
+        ip: req.ip,
+        userAgent: req.get('user-agent') || undefined,
+      });
 
       res.json({ message: 'Patient deleted successfully' });
     } catch (error: any) {
