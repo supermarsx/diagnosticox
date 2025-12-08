@@ -30,6 +30,7 @@
 - Pivots: `GET /api/pivots` (public + org), filters `type`, `category`, `is_public`; create via `POST /api/pivots` (admin/clinician).
 - Bias guardrails: `GET /api/bias/patient/:patientId`; record checkpoint via `POST /api/bias` with guardrail type, checkpoint question, alternatives/disconfirming evidence.
 - Facts: `GET /api/facts/patient/:patientId` to list clinical signals; create/update/delete via `POST /api/facts`, `PUT /api/facts/:id`, `DELETE /api/facts/:id` (admin/clinician writes, admin delete).
+- Export: `GET /api/export/patient/:patientId?format=json|csv` returns patient bundle (JSON) or facts CSV; scoped to caller org.
 
 ## Environment
 - JWT secret: `JWT_SECRET`
