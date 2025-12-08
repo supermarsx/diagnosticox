@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { Activity, AlertCircle, Lock, Mail } from 'lucide-react';
 import { apiService } from '../services/apiService';
+import { useAuth } from '../contexts/AuthContext';
 
 interface LoginPageProps {
-  onLogin: (user: any, token: string) => void;
+  onLogin?: (user: any, token: string) => void;
 }
 
 export default function LoginPage({ onLogin }: LoginPageProps) {
+  const auth = useAuth();
   const [email, setEmail] = useState('dr.smith@clinic.com');
   const [password, setPassword] = useState('demo123');
   const [loading, setLoading] = useState(false);
@@ -18,8 +20,9 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
     setError(null);
 
     try {
-      const response = await apiService.login(email, password);
-      onLogin(response.user, response.token);
+      // use Auth context when available
+      const response = await auth.login(email, password);
+      if (onLogin && response) onLogin(response.user, response.token);
     } catch (err: any) {
       setError(err.message || 'Login failed. Please check your credentials.');
       console.error('Login error:', err);

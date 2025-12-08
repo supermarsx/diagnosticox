@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
+import { useAuth } from './contexts/AuthContext';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import PatientDetailPage from './pages/PatientDetailPage';
@@ -41,39 +42,13 @@ import CacheMetricsDashboard from './pages/CacheMetricsDashboard';
 import { apiService } from './services/apiService';
 
 function App() {
-  const [user, setUser] = useState<any>(null);
+  const { user, login, logout } = useAuth();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check if user is already logged in
-    const token = localStorage.getItem('auth_token');
-    const storedUser = localStorage.getItem('user');
-    
-    if (token && storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch (error) {
-        console.error('Failed to parse stored user:', error);
-        localStorage.removeItem('auth_token');
-        localStorage.removeItem('user');
-      }
-    }
-    
+    // initial load defer to AuthProvider
     setLoading(false);
   }, []);
-
-  const handleLogin = (userData: any, token: string) => {
-    setUser(userData);
-    localStorage.setItem('user', JSON.stringify(userData));
-    apiService.setToken(token);
-  };
-
-  const handleLogout = () => {
-    setUser(null);
-    localStorage.removeItem('user');
-    localStorage.removeItem('auth_token');
-    apiService.clearToken();
-  };
 
   if (loading) {
     return (
@@ -93,7 +68,7 @@ function App() {
           path="/login" 
           element={
             !user ? (
-              <LoginPage onLogin={handleLogin} />
+              <LoginPage />
             ) : (
               <Navigate to="/dashboard" replace />
             )
@@ -103,7 +78,7 @@ function App() {
           path="/dashboard"
           element={
             user ? (
-              <DashboardPage user={user} onLogout={handleLogout} />
+              <DashboardPage user={user} onLogout={() => logout()} />
             ) : (
               <Navigate to="/login" replace />
             )
