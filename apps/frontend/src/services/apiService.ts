@@ -268,7 +268,7 @@ class ApiService {
   // Patients
   async getPatients(): Promise<{ patients: Patient[]; total: number }> {
     try {
-      const data = await this.request<{ patients: Patient[]; total: number }>('/patients');
+      const data = await this.request<{ patients: Patient[]; total: number }>('/patients/summary');
       
       // Cache in IndexedDB
       if (data.patients) {

@@ -11,7 +11,30 @@
         "type": "text",
         "title": "Notes",
         "gridPos": { "h": 3, "w": 24, "x": 0, "y": 0 },
-        "options": { "content": "This is a CI-imported dashboard used to snapshot tracing state in CI.", "mode": "markdown" }
+        "options": { "content": "This is a CI-imported dashboard used to snapshot tracing state in CI. Use the Trace panel below to explore traces indexed in Tempo and confirm instrumentation coverage (e.g. auth.register span).", "mode": "markdown" }
+      },
+      {
+        "type": "trace",
+        "title": "Recent traces (Tempo)",
+        "gridPos": { "h": 10, "w": 12, "x": 0, "y": 3 },
+        "options": {
+          "limit": 20,
+          "datasource": { "type": "tempo", "uid": "Tempo" }
+        }
+      },
+      {
+        "type": "timeseries",
+        "title": "Trace latency (p50/p95) - via Prometheus if available",
+        "gridPos": { "h": 6, "w": 12, "x": 12, "y": 3 },
+        "targets": [],
+        "fieldConfig": { "defaults": {}, "overrides": [] }
+      },
+      {
+        "type": "stat",
+        "title": "Failed spans ratio (example)",
+        "gridPos": { "h": 4, "w": 24, "x": 0, "y": 13 },
+        "targets": [],
+        "options": { "colorMode": "value" }
       }
     ]
   },

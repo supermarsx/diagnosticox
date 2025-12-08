@@ -17,7 +17,7 @@ describe('DashboardPage', () => {
     ];
 
     // server returns aggregated counts in patient.problem_count
-    const demoWithCounts = demo.map((p, i) => ({ ...p, problem_count: i === 0 ? 1 : 0 }));
+    const demoWithCounts = demo.map((p, i) => ({ ...p, problem_count: i === 0 ? 1 : 0, facts_count: i === 0 ? 2 : 0, last_activity: i === 0 ? '2025-10-02T00:00:00Z' : null }));
     (apiService as any).getPatients.mockResolvedValue({ patients: demoWithCounts, total: demoWithCounts.length });
 
     render(<DashboardPage user={{ full_name: 'Test User' }} onLogout={() => {}} />);

@@ -43,6 +43,47 @@ export class PatientController {
     }
   }
 
+  async summary(req: AuthRequest, res: Response) {
+    /**
+     * Return an aggregated patient summary per tenant.
+     * Includes problem_count, facts_count, and last_activity timestamp (best-effort).
+     */
+    try {
+      const organizationId = req.tenantId || req.user!.organizationId;
+      const { limit = '50', offset = '0' } = req.query;
+
+      const query = `
+        SELECT p.id, p.first_name, p.last_name, p.mrn, p.date_of_birth, p.gender,
+          (
+            SELECT COUNT(*) FROM problems pr WHERE pr.patient_id = p.id AND pr.organization_id = ?
+          ) AS problem_count,
+          (
+            SELECT COUNT(*) FROM facts f WHERE f.patient_id = p.id AND f.organization_id = ?
+          ) AS facts_count,
+          (
+            SELECT MAX(coalesced) FROM (
+              SELECT pr.updated_at AS coalesced FROM problems pr WHERE pr.patient_id = p.id AND pr.organization_id = ?
+              UNION ALL
+              SELECT f.measured_at AS coalesced FROM facts f WHERE f.patient_id = p.id AND f.organization_id = ?
+              UNION ALL
+              SELECT t.event_date AS coalesced FROM timeline_events t WHERE t.patient_id = p.id AND t.organization_id = ?
+            ) AS combined
+          ) AS last_activity
+        FROM patients p
+        WHERE p.organization_id = ?
+        ORDER BY p.updated_at DESC
+        LIMIT ? OFFSET ?
+      `;
+
+      const params = [organizationId, organizationId, organizationId, organizationId, organizationId, parseInt(limit as string), parseInt(offset as string)];
+
+      const rows = await this.db.query(query, params);
+      res.json({ patients: rows, total: rows.length });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+
   async get(req: AuthRequest, res: Response) {
     /**
      * Retrieve a single patient by id. Response includes ETag header (for

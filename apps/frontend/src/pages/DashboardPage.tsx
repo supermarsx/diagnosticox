@@ -340,12 +340,14 @@ export default function DashboardPage({ user, onLogout }: DashboardPageProps) {
                               {patient.gender}
                             </span>
                           </div>
-                          <div className="flex items-center gap-4 mt-1">
-                            {patient.contact_email && (
-                              <p className="text-sm text-gray-500">{patient.contact_email}</p>
-                            )}
-                            <div className="text-sm text-gray-500">Problems: {problemCounts[patient.id] ?? '-'}</div>
-                          </div>
+                                              <div className="flex items-center gap-4 mt-1">
+                                                {patient.contact_email && (
+                                                  <p className="text-sm text-gray-500">{patient.contact_email}</p>
+                                                )}
+                                                <div className="text-sm text-gray-500">Problems: {problemCounts[patient.id] ?? '-'}</div>
+                                                <div className="text-sm text-gray-500">Facts: {(patient as any).facts_count ?? '-'}</div>
+                                                <div className="text-sm text-gray-500">Last activity: {(patient as any).last_activity ? new Date((patient as any).last_activity).toLocaleDateString() : '-'}</div>
+                                              </div>
                         </div>
                       </div>
                     </div>

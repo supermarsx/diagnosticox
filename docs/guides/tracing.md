@@ -56,6 +56,9 @@ Grafana provisioning
 
 For local CI-like runs the repository includes Grafana provisioning files under `.github/tracing/grafana/` which pre-provisions a Tempo datasource and a minimal Diagnosticox traces dashboard. When running Grafana in CI or locally mount that directory into the Grafana container at `/etc/grafana/provisioning` and `/var/lib/grafana/dashboards` so the dashboard and datasource are loaded automatically.
 
+Dashboard contents
+- The `Diagnosticox Traces` dashboard includes an interactive Trace panel (backed by Tempo) to inspect recent traces and spans, a placeholder timeseries panel for latency (p50/p95) if Prometheus metrics are available, and a stat panel intended to surface the failed-span ratio. These panels make it easier to validate observability in CI and local testing.
+
 Notes
 
 - The tracing bootstraps use dynamic imports (try/catch) so missing packages do not break the app. Install the required packages and configure exporters for full tracing.
