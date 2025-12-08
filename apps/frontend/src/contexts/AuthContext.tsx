@@ -10,6 +10,14 @@ interface AuthContextValue {
   logout: () => void;
 }
 
+/**
+ * AuthContext
+ *
+ * Centralized authentication state for the frontend. The provider reads
+ * token+user from localStorage on startup, and exposes helpers to login/logout.
+ * The implementation uses the shared `apiService` which persists auth tokens
+ * and provides offline behavior for the app.
+ */
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {

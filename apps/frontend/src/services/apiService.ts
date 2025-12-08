@@ -4,6 +4,14 @@ import type { Patient, Problem, Hypothesis, Trial, TimelineEvent, DiaryEntry } f
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
+/**
+ * ApiService
+ *
+ * Client-side service that centralizes all backend API calls and handles
+ * token management, offline fallbacks (IndexedDB via offlineStorage) and a
+ * simple sync queue for write operations while offline. The class is used as
+ * a singleton (`apiService`) across the frontend app.
+ */
 class ApiService {
   private token: string | null = null;
   private isOnline: boolean = navigator.onLine;

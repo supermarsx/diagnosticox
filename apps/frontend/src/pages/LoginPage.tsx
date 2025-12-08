@@ -1,3 +1,12 @@
+/**
+ * LoginPage
+ *
+ * Simple login page component used by the demo app. It integrates with the
+ * frontend AuthContext and apiService to authenticate a user and store
+ * credentials locally for the session. The look-and-feel is purposefully rich
+ * for the prototype and intended to be replaced with a production-ready
+ * authentication UI as part of security hardening.
+ */
 import { useState } from 'react';
 import { Activity, AlertCircle, Lock, Mail } from 'lucide-react';
 import { apiService } from '../services/apiService';

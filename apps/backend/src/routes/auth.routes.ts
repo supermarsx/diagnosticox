@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { authService } from '../services/auth.service';
+import { sessionService } from '../services/session.service';
 import { idempotencyHandler } from '../middleware/idempotency.middleware';
 
 /**
@@ -65,6 +66,31 @@ router.post('/login', async (req, res) => {
     res.json(result);
   } catch (error: any) {
     res.status(401).json({ error: error.message });
+  }
+});
+
+/**
+ * Token introspection (prototype)
+ *
+ * Accepts a token (in body { token }) or Authorization header and returns
+ * the decoded claims. If the token contains a `sessionId` claim this endpoint
+ * will also check whether the session still exists in the session store.
+ */
+router.post('/introspect', async (req, res) => {
+  try {
+    const token = req.body?.token || (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+    if (!token) return res.status(400).json({ error: 'Missing token' });
+
+    const decoded = authService.verifyToken(token);
+    let sessionExists = false;
+    if ((decoded as any).sessionId) {
+      const s = await sessionService.getSession((decoded as any).sessionId);
+      sessionExists = !!s;
+    }
+
+    return res.json({ claims: decoded, sessionExists });
+  } catch (err: any) {
+    return res.status(401).json({ error: 'Invalid token' });
   }
 });
 

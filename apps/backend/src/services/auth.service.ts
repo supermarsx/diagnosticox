@@ -126,13 +126,22 @@ export class AuthService {
     return { user: userWithoutPassword, token };
   }
 
-  generateToken(userId: string, organizationId: string, role: string): string {
-    const payload = { userId, organizationId, role };
+  /**
+   * Generate a JWT for a user.
+   *
+   * You can optionally include a `sessionId` claim which can be associated
+   * with short-lived sessions stored in cache/Redis. This is useful when the
+   * app needs to quickly revoke or validate sessions without reissuing many
+   * long-lived tokens.
+   */
+  generateToken(userId: string, organizationId: string, role: string, sessionId?: string): string {
+    const payload: any = { userId, organizationId, role };
+    if (sessionId) payload.sessionId = sessionId;
     const options: SignOptions = { expiresIn: config.auth.jwtExpiresIn as any };
     return jwt.sign(payload, config.auth.jwtSecret, options);
   }
 
-  verifyToken(token: string): { userId: string; organizationId: string; role: string } {
+  verifyToken(token: string): { userId: string; organizationId: string; role: string; sessionId?: string } {
     try {
       return jwt.verify(token, config.auth.jwtSecret) as any;
     } catch (error) {

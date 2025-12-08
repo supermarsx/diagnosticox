@@ -1,7 +1,9 @@
 import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { cacheService } from '../services/cache.service';
+import { idempotencyHandler } from '../middleware/idempotency.middleware';
 import { authService } from '../services/auth.service';
+import { sessionService } from '../services/session.service';
 
 const router = Router();
 
@@ -17,7 +19,7 @@ const router = Router();
  *  - POST /pkce/complete -> exchange code + code_verifier for an app JWT
  */
 // Start PKCE flow (internal lightweight flow) - returns a temporary code
-router.post('/pkce/start', async (req, res) => {
+router.post('/pkce/start', idempotencyHandler, async (req, res) => {
   try {
     const { client_id, redirect_uri, code_challenge, state } = req.body;
     if (!client_id || !redirect_uri || !code_challenge) {
@@ -62,12 +64,15 @@ router.post('/pkce/complete', async (req, res) => {
 
     // For demo: if username provided, locate user and return token, otherwise return simple token for demo user
     const userId = username ? username : 'system-pkce-user';
-    const token = authService.generateToken(userId, payload.client_id, 'clinician');
+    // Create a short lived session for the user and return the session id
+    const sessionId = await sessionService.createSession({ userId, organizationId: payload.client_id, role: 'clinician' }, 60 * 60);
+
+    const token = authService.generateToken(userId, payload.client_id, 'clinician', sessionId);
 
     // remove pkce code
     await cacheService.del(`pkce:${code}`);
 
-    return res.json({ token });
+    return res.json({ token, sessionId });
   } catch (err: any) {
     return res.status(500).json({ error: err.message || 'PKCE complete failed' });
   }

@@ -85,6 +85,47 @@ jobs:
             exit 1
           fi
 
+  # Integration tests using local dev stack (Postgres/Redis/MinIO)
+  integration:
+    name: Integration (docker-compose)
+    runs-on: ubuntu-latest
+    needs: [test]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Start local infra with docker-compose
+        run: |
+          docker compose -f docker-compose.dev.yml up -d
+
+      - name: Wait for Postgres to become ready
+        run: |
+          for i in {1..30}; do
+            if docker exec $(docker ps -qf "ancestor=postgres:15") pg_isready -U postgres; then
+              echo "postgres ready"; break; fi
+            sleep 2; done
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run backend integration tests
+        run: pnpm --filter diagnosticox-backend run test:ci
+
+      - name: Tear down infra
+        if: always()
+        run: docker compose -f docker-compose.dev.yml down
+
   # Build Application
   build:
     name: Build

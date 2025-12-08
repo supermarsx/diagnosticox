@@ -16,6 +16,7 @@ import helmet from 'helmet';
 import { config } from './config';
 import authRoutes from './routes/auth.routes';
 import oidcRoutes from './routes/oidc.routes';
+import sessionRoutes from './routes/session.routes';
 import patientRoutes from './routes/patient.routes';
 import problemRoutes from './routes/problem.routes';
 import bayesianRoutes from './routes/bayesian.routes';
@@ -58,6 +59,7 @@ app.get('/health', (req, res) => {
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/auth/oidc', oidcRoutes);
+app.use('/api/auth/session', sessionRoutes);
 app.use('/api/patients', patientRoutes);
 app.use('/api/problems', problemRoutes);
 app.use('/api/bayesian', bayesianRoutes);
