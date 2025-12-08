@@ -19,6 +19,7 @@ import importRoutes from './routes/import.routes';
 import reportRoutes from './routes/report.routes';
 import icdRoutes from './routes/icd.routes';
 import aiRoutes from './routes/ai.routes';
+import excelRoutes from './routes/excel.routes';
 import { v4 as uuidv4 } from 'uuid';
 
 const app = express();
@@ -75,6 +76,7 @@ app.use('/api/import', importRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/icd', icdRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/excel', excelRoutes);
 app.use('/api/security', securityRoutes);
 
 // Error handling
