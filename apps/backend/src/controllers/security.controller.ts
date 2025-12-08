@@ -185,6 +185,32 @@ export class SecurityController {
     }
   }
 
+  // Create organization (admin-only)
+  static async createOrganization(req: AuthRequest, res: Response) {
+    try {
+      const { name, subdomain, settings } = req.body;
+      if (!name) {
+        return res.status(400).json({ error: 'Organization name is required' });
+      }
+
+      const db = getDatabase();
+      const id = `org_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+      const now = new Date().toISOString();
+
+      await db.execute(
+        `INSERT INTO organizations (id, name, subdomain, settings, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [id, name, subdomain || null, JSON.stringify(settings || {}), now, now]
+      );
+
+      const organization = await db.get('SELECT * FROM organizations WHERE id = ?', [id]);
+      res.status(201).json({ organization });
+    } catch (error: any) {
+      console.error('Create organization error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+
   // Get departments
   static async getDepartments(req: AuthRequest, res: Response) {
     try {

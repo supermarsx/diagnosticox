@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { SecurityController } from '../controllers/security.controller';
-import { authenticate, enforceTenant } from '../middleware/auth.middleware';
+import { authenticate, enforceTenant, authorize } from '../middleware/auth.middleware';
 
 const router = Router();
 
@@ -28,6 +28,7 @@ router.get('/privacy/agreements', SecurityController.getSharingAgreements);
 
 // Organizations & Departments
 router.get('/organizations', SecurityController.getOrganizations);
+router.post('/organizations', authorize('admin'), SecurityController.createOrganization);
 router.get('/departments', SecurityController.getDepartments);
 
 // Auth Methods
