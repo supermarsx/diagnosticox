@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { authService } from '../services/auth.service';
 import { sessionService } from '../services/session.service';
+import { cacheService } from '../services/cache.service';
+import crypto from 'crypto';
 import { idempotencyHandler } from '../middleware/idempotency.middleware';
 
 /**
@@ -25,7 +27,18 @@ router.post('/register', idempotencyHandler, async (req, res) => {
     }
 
     const result = await authService.register(email, password, full_name, organization_id, role);
-    res.status(201).json(result);
+
+    // create a short-lived session and a refresh token
+    const sessionId = await sessionService.createSession({ userId: result.user.id, organizationId: organization_id, role: role || 'clinician' }, 60 * 60 * 24 * 7); // 7 days session
+    const refreshToken = crypto.randomBytes(32).toString('hex');
+    // store mapping both ways to support rotation/revocation
+    await cacheService.set(`refresh:${refreshToken}`, sessionId, 60 * 60 * 24 * 30); // 30 days
+    await cacheService.set(`session_refresh:${sessionId}`, refreshToken, 60 * 60 * 24 * 30);
+
+    // produce an access token with session claim
+    const token = authService.generateToken(result.user.id, organization_id, role || 'clinician', sessionId);
+
+    res.status(201).json({ user: result.user, token, sessionId, refreshToken });
   } catch (error: any) {
     res.status(400).json({ error: error.message });
   }
@@ -47,8 +60,14 @@ router.post('/bootstrap', idempotencyHandler, async (req, res) => {
       admin_full_name,
       org_id
     );
+    // create session + refresh token for bootstrap admin
+    const sessionId = await sessionService.createSession({ userId: result.user.id, organizationId: result.organizationId, role: 'admin' }, 60 * 60 * 24 * 7);
+    const refreshToken = crypto.randomBytes(32).toString('hex');
+    await cacheService.set(`refresh:${refreshToken}`, sessionId, 60 * 60 * 24 * 30);
+    await cacheService.set(`session_refresh:${sessionId}`, refreshToken, 60 * 60 * 24 * 30);
 
-    res.status(201).json(result);
+    const token = authService.generateToken(result.user.id, result.organizationId, 'admin', sessionId);
+    res.status(201).json({ organizationId: result.organizationId, user: result.user, token, sessionId, refreshToken });
   } catch (error: any) {
     res.status(400).json({ error: error.message });
   }
@@ -63,7 +82,15 @@ router.post('/login', async (req, res) => {
     }
 
     const result = await authService.login(email, password);
-    res.json(result);
+
+    // create session + refresh token
+    const sessionId = await sessionService.createSession({ userId: result.user.id, organizationId: result.user.organization_id, role: result.user.role }, 60 * 60 * 24 * 7);
+    const refreshToken = crypto.randomBytes(32).toString('hex');
+    await cacheService.set(`refresh:${refreshToken}`, sessionId, 60 * 60 * 24 * 30);
+    await cacheService.set(`session_refresh:${sessionId}`, refreshToken, 60 * 60 * 24 * 30);
+
+    const token = authService.generateToken(result.user.id, result.user.organization_id, result.user.role, sessionId);
+    res.json({ user: result.user, token, sessionId, refreshToken });
   } catch (error: any) {
     res.status(401).json({ error: error.message });
   }
@@ -91,6 +118,74 @@ router.post('/introspect', async (req, res) => {
     return res.json({ claims: decoded, sessionExists });
   } catch (err: any) {
     return res.status(401).json({ error: 'Invalid token' });
+  }
+});
+
+/**
+ * Refresh access token
+ * Request: { refreshToken }
+ * - Verifies the refresh token mapping, rotates to a new session + refresh token,
+ *   and returns a new access token + refresh token.
+ */
+router.post('/token/refresh', async (req, res) => {
+  try {
+    const incoming = req.body?.refreshToken || req.body?.refresh_token;
+    if (!incoming) return res.status(400).json({ error: 'Missing refreshToken' });
+
+    const sessionId = await cacheService.get(`refresh:${incoming}`);
+    if (!sessionId) return res.status(401).json({ error: 'Invalid refresh token' });
+
+    const session = await sessionService.getSession(sessionId);
+    if (!session) return res.status(401).json({ error: 'Invalid session' });
+
+    // rotate: create a new session and refresh token, delete old keys
+    const newSessionId = await sessionService.createSession(session, 60 * 60 * 24 * 7);
+    const newRefresh = crypto.randomBytes(32).toString('hex');
+
+    await cacheService.set(`refresh:${newRefresh}`, newSessionId, 60 * 60 * 24 * 30);
+    await cacheService.set(`session_refresh:${newSessionId}`, newRefresh, 60 * 60 * 24 * 30);
+
+    // cleanup old
+    await cacheService.del(`refresh:${incoming}`);
+    await cacheService.del(`session_refresh:${sessionId}`);
+    await sessionService.destroySession(sessionId);
+
+    // issue new access token containing new sessionId
+    const token = authService.generateToken(session.userId || 'unknown', session.organizationId || 'unknown', session.role || 'clinician', newSessionId);
+
+    return res.json({ token, sessionId: newSessionId, refreshToken: newRefresh });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message || 'Refresh failed' });
+  }
+});
+
+/**
+ * Revoke a refresh token or session. Accepts { refreshToken } or { sessionId }.
+ * This will remove the refresh<>session mapping and the underlying session.
+ */
+router.post('/token/revoke', async (req, res) => {
+  try {
+    const refresh = req.body?.refreshToken || req.body?.refresh_token;
+    const sessionId = req.body?.sessionId || req.body?.session_id;
+
+    let targetSession: string | null = sessionId || null;
+
+    if (!targetSession && refresh) {
+      const s = await cacheService.get(`refresh:${refresh}`);
+      if (s) targetSession = s;
+    }
+
+    if (!targetSession) return res.status(400).json({ error: 'Missing token/sessionId' });
+
+    // remove potential refresh mapping and session
+    const refreshToken = await cacheService.get(`session_refresh:${targetSession}`);
+    if (refreshToken) await cacheService.del(`refresh:${refreshToken}`);
+    await cacheService.del(`session_refresh:${targetSession}`);
+    await sessionService.destroySession(targetSession);
+
+    return res.json({ ok: true });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message || 'Revoke failed' });
   }
 });
 

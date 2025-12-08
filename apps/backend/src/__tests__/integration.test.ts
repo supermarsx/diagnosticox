@@ -85,8 +85,11 @@ describe('Integration — PKCE + Idempotency', () => {
     const getRes = await request(app).get(`/api/auth/session/${sessionId}`).expect(200);
     expect(getRes.body).toHaveProperty('session');
 
-    // DELETE session
-    await request(app).delete(`/api/auth/session/${sessionId}`).expect(200);
+    // DELETE session (must be authorized - token belongs to session)
+    await request(app)
+      .delete(`/api/auth/session/${sessionId}`)
+      .set('Authorization', `Bearer ${complete.body.token}`)
+      .expect(200);
 
     // GET should now be 404
     await request(app).get(`/api/auth/session/${sessionId}`).expect(404);
@@ -119,7 +122,7 @@ describe('Integration — PKCE + Idempotency', () => {
     expect(introspect.body).toHaveProperty('sessionExists', true);
 
     // delete session then introspect should indicate session missing
-    await request(app).delete(`/api/auth/session/${sessionId}`).expect(200);
+    await request(app).delete(`/api/auth/session/${sessionId}`).set('Authorization', `Bearer ${token}`).expect(200);
     const introspectAfter = await request(app).post('/api/auth/introspect').send({ token }).expect(200);
     expect(introspectAfter.body.sessionExists).toBe(false);
   });
@@ -146,5 +149,45 @@ describe('Integration — PKCE + Idempotency', () => {
 
     // ensure that the two responses are identical (status+body) — idempotency returns cached response
     expect(second.body).toEqual(first.body);
+  });
+
+  test('refresh token exchange rotates session and can be revoked', async () => {
+    const codeVerifier = 'refresh-verifier';
+    const crypto = await import('crypto');
+    const hashed = crypto.createHash('sha256').update(codeVerifier).digest();
+    const codeChallenge = hashed.toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+
+    const start = await request(app)
+      .post('/api/auth/oidc/pkce/start')
+      .send({ client_id: 'refresh-client', redirect_uri: 'https://cb', code_challenge: codeChallenge })
+      .expect(201);
+
+    const { code } = start.body;
+    const complete = await request(app).post('/api/auth/oidc/pkce/complete').send({ code, code_verifier: codeVerifier }).expect(200);
+    const oldRefresh = complete.body.refreshToken;
+    const oldSession = complete.body.sessionId;
+    expect(oldRefresh).toBeDefined();
+
+    // Exchange refresh -> rotated session + token
+    const exchange = await request(app).post('/api/auth/token/refresh').send({ refreshToken: oldRefresh }).expect(200);
+    expect(exchange.body).toHaveProperty('token');
+    expect(exchange.body).toHaveProperty('sessionId');
+    expect(exchange.body).toHaveProperty('refreshToken');
+
+    const newSession = exchange.body.sessionId;
+    const newRefresh = exchange.body.refreshToken;
+    expect(newSession).not.toEqual(oldSession);
+    expect(newRefresh).not.toEqual(oldRefresh);
+
+    // Validate introspection shows session exists for new token
+    const introspect = await request(app).post('/api/auth/introspect').send({ token: exchange.body.token }).expect(200);
+    expect(introspect.body.sessionExists).toBe(true);
+
+    // Revoke new refresh token
+    await request(app).post('/api/auth/token/revoke').send({ refreshToken: newRefresh }).expect(200);
+
+    // introspection shows session missing
+    const introspectAfter = await request(app).post('/api/auth/introspect').send({ token: exchange.body.token }).expect(200);
+    expect(introspectAfter.body.sessionExists).toBe(false);
   });
 });

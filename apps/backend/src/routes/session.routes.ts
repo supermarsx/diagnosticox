@@ -1,5 +1,10 @@
 import { Router } from 'express';
 import { sessionService } from '../services/session.service';
+import { authService } from '../services/auth.service';
+
+// For admin checks and token ownership validation we require callers to present
+// a Bearer token matching the session or be an admin. This prevents open deletion
+// without authorization in non-dev environments.
 
 const router = Router();
 
@@ -28,6 +33,19 @@ router.get('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    // authorize: require a bearer token, check session match or admin role
+    const authHeader = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+    if (!authHeader) return res.status(401).json({ error: 'Missing Authorization token' });
+
+    try {
+      const claims = authService.verifyToken(authHeader) as any;
+      if (claims.role !== 'admin' && claims.sessionId !== id) {
+        return res.status(403).json({ error: 'Insufficient permissions to destroy session' });
+      }
+    } catch (err) {
+      return res.status(401).json({ error: 'Invalid token' });
+    }
+
     await sessionService.destroySession(id);
     return res.json({ ok: true });
   } catch (err: any) {

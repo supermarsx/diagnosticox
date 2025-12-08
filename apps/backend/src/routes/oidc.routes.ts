@@ -65,14 +65,20 @@ router.post('/pkce/complete', async (req, res) => {
     // For demo: if username provided, locate user and return token, otherwise return simple token for demo user
     const userId = username ? username : 'system-pkce-user';
     // Create a short lived session for the user and return the session id
+
     const sessionId = await sessionService.createSession({ userId, organizationId: payload.client_id, role: 'clinician' }, 60 * 60);
+
+    // generate a long-lived refresh token mapped to the session
+    const refreshToken = crypto.randomBytes(32).toString('hex');
+    await cacheService.set(`refresh:${refreshToken}`, sessionId, 60 * 60 * 24 * 30);
+    await cacheService.set(`session_refresh:${sessionId}`, refreshToken, 60 * 60 * 24 * 30);
 
     const token = authService.generateToken(userId, payload.client_id, 'clinician', sessionId);
 
     // remove pkce code
     await cacheService.del(`pkce:${code}`);
 
-    return res.json({ token, sessionId });
+    return res.json({ token, sessionId, refreshToken });
   } catch (err: any) {
     return res.status(500).json({ error: err.message || 'PKCE complete failed' });
   }
