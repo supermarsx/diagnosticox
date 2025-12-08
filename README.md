@@ -6,6 +6,17 @@ DiagnosticoX is a comprehensive, production-grade medical diagnosis platform fea
 
 ---
 
+## Repository Structure
+- `src/`, `public/`, `index.html` - Vite + React 18 frontend.
+- `backend/` - optional Express/TypeScript prototype (source only; build artifacts removed).
+- `docs/guides/` - installation, deployment, and cache/testing guides.
+- `docs/reports/` - implementation notes, progress reports, and research summaries.
+- `docs/` - additional technical references.
+- `data/` - ICD/DSM and symptom research references.
+- `user_input_files/` - preserved sample input artefacts for context.
+
+---
+
 ## Features
 
 ### Core Clinical Capabilities

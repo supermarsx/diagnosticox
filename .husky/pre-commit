@@ -1,0 +1,4 @@
+#!/usr/bin/env sh
+
+# Run lint-staged without the Husky bootstrap helper to reduce repo clutter
+npx lint-staged
