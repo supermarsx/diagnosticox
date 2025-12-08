@@ -16,6 +16,8 @@ import factRoutes from './routes/fact.routes';
 import exportRoutes from './routes/export.routes';
 import fhirRoutes from './routes/fhir.routes';
 import importRoutes from './routes/import.routes';
+import reportRoutes from './routes/report.routes';
+import { v4 as uuidv4 } from 'uuid';
 
 const app = express();
 
@@ -27,6 +29,27 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.text({ type: 'text/csv', limit: '5mb' }));
+
+// Correlation ID + request logging
+app.use((req, res, next) => {
+  (req as any).requestId = (req.headers['x-request-id'] as string) || uuidv4();
+  res.setHeader('x-request-id', (req as any).requestId);
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    console.log(
+      JSON.stringify({
+        requestId: (req as any).requestId,
+        method: req.method,
+        path: req.originalUrl,
+        status: res.statusCode,
+        duration_ms: duration,
+      })
+    );
+  });
+  next();
+});
 
 // Health check
 app.get('/health', (req, res) => {
@@ -47,6 +70,7 @@ app.use('/api/facts', factRoutes);
 app.use('/api/export', exportRoutes);
 app.use('/api/fhir', fhirRoutes);
 app.use('/api/import', importRoutes);
+app.use('/api/reports', reportRoutes);
 app.use('/api/security', securityRoutes);
 
 // Error handling
