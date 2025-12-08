@@ -1,0 +1,86 @@
+{
+  "common": {
+    "loading": "A carregar...",
+    "error": "Erro",
+    "success": "Sucesso",
+    "cancel": "Cancelar",
+    "save": "Guardar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "view": "Ver",
+    "search": "Pesquisar",
+    "filter": "Filtrar",
+    "export": "Exportar",
+    "import": "Importar",
+    "logout": "Terminar sessão"
+  },
+  "navigation": {
+    "dashboard": "Painel",
+    "patients": "Pacientes",
+    "diagnosis": "Diagnóstico",
+    "analytics": "Análises",
+    "security": "Segurança",
+    "settings": "Configurações",
+    "assessments": "Avaliações",
+    "icd": "CID"
+  },
+  "usageModes": {
+    "clinicalSetting": "Ambiente Clínico",
+    "clinicalStudy": "Estudo Clínico",
+    "student": "Modo Estudante",
+    "fullHospital": "Hospital Completo",
+    "selfExploration": "Auto-Exploração",
+    "switchMode": "Mudar Modo",
+    "currentMode": "Modo Atual"
+  },
+  "diagnosis": {
+    "title": "Diagnóstico",
+    "enterSymptoms": "Introduzir Sintomas",
+    "differentialDiagnosis": "Diagnóstico Diferencial",
+    "confidence": "Confiança",
+    "recommendations": "Recomendações",
+    "aiAnalysis": "Análise IA",
+    "treatmentPlan": "Plano de Tratamento"
+  },
+  "symptoms": {
+    "title": "Sintomas",
+    "severity": "Gravidade",
+    "onset": "Início",
+    "duration": "Duração",
+    "location": "Localização",
+    "searchSymptoms": "Pesquisar Sintomas",
+    "addSymptom": "Adicionar Sintoma",
+    "redFlags": "Sinais de Alerta",
+    "organSystems": {
+      "cardiovascular": "Cardiovascular",
+      "respiratory": "Respiratório",
+      "digestive": "Digestivo",
+      "nervous": "Nervoso",
+      "musculoskeletal": "Musculoesquelético",
+      "integumentary": "Tegumentar",
+      "endocrine": "Endócrino",
+      "urinary": "Urinário",
+      "lymphatic_immune": "Linfático/Imunitário",
+      "reproductive_male": "Reprodutivo (Masculino)",
+      "reproductive_female": "Reprodutivo (Feminino)"
+    }
+  },
+  "assessments": {
+    "phq9": { "title": "PHQ-9", "description": "Rastreio de depressão" },
+    "gad7": { "title": "GAD-7", "description": "Rastreio de ansiedade" }
+  },
+  "icd": {
+    "title": "Consulta CID-10/CID-11",
+    "searchCodes": "Pesquisar Códigos CID",
+    "icd10": "CID-10",
+    "icd11": "CID-11",
+    "codeDetails": "Detalhes do Código",
+    "mapping": "Mapeamento de Códigos",
+    "chapters": "Capítulos"
+  },
+  "security": {
+    "mfa": "Autenticação Multifator",
+    "permissions": "Permissões",
+    "auditLogs": "Registos de Auditoria"
+  }
+}

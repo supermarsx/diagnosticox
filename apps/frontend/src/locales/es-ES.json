@@ -1,0 +1,86 @@
+{
+  "common": {
+    "loading": "Cargando...",
+    "error": "Error",
+    "success": "Éxito",
+    "cancel": "Cancelar",
+    "save": "Guardar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "view": "Ver",
+    "search": "Buscar",
+    "filter": "Filtrar",
+    "export": "Exportar",
+    "import": "Importar",
+    "logout": "Cerrar sesión"
+  },
+  "navigation": {
+    "dashboard": "Panel",
+    "patients": "Pacientes",
+    "diagnosis": "Diagnóstico",
+    "analytics": "Analítica",
+    "security": "Seguridad",
+    "settings": "Ajustes",
+    "assessments": "Evaluaciones",
+    "icd": "CIE"
+  },
+  "usageModes": {
+    "clinicalSetting": "Ámbito clínico",
+    "clinicalStudy": "Estudio clínico",
+    "student": "Modo estudiante",
+    "fullHospital": "Hospital completo",
+    "selfExploration": "Autoexploración",
+    "switchMode": "Cambiar modo",
+    "currentMode": "Modo actual"
+  },
+  "diagnosis": {
+    "title": "Diagnóstico",
+    "enterSymptoms": "Introducir síntomas",
+    "differentialDiagnosis": "Diagnóstico diferencial",
+    "confidence": "Confianza",
+    "recommendations": "Recomendaciones",
+    "aiAnalysis": "Análisis IA",
+    "treatmentPlan": "Plan de tratamiento"
+  },
+  "symptoms": {
+    "title": "Síntomas",
+    "severity": "Gravedad",
+    "onset": "Inicio",
+    "duration": "Duración",
+    "location": "Localización",
+    "searchSymptoms": "Buscar síntomas",
+    "addSymptom": "Añadir síntoma",
+    "redFlags": "Signos de alarma",
+    "organSystems": {
+      "cardiovascular": "Cardiovascular",
+      "respiratory": "Respiratorio",
+      "digestive": "Digestivo",
+      "nervous": "Nervioso",
+      "musculoskeletal": "Musculoesquelético",
+      "integumentary": "Tegumentario",
+      "endocrine": "Endocrino",
+      "urinary": "Urinario",
+      "lymphatic_immune": "Linfático/Inmune",
+      "reproductive_male": "Reproductor (Masculino)",
+      "reproductive_female": "Reproductor (Femenino)"
+    }
+  },
+  "assessments": {
+    "phq9": { "title": "PHQ-9", "description": "Cribado de depresión" },
+    "gad7": { "title": "GAD-7", "description": "Cribado de ansiedad" }
+  },
+  "icd": {
+    "title": "Consulta CIE-10/CIE-11",
+    "searchCodes": "Buscar códigos CIE",
+    "icd10": "CIE-10",
+    "icd11": "CIE-11",
+    "codeDetails": "Detalles del código",
+    "mapping": "Mapeo de códigos",
+    "chapters": "Capítulos"
+  },
+  "security": {
+    "mfa": "Autenticación multifactor",
+    "permissions": "Permisos",
+    "auditLogs": "Registros de auditoría"
+  }
+}
