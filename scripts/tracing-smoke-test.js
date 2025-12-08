@@ -10,7 +10,8 @@
 const fetch = globalThis.fetch || require('node-fetch');
 
 const BACKEND = process.env.BACKEND_URL || 'http://localhost:3000';
-const JAEGER_UI = process.env.JAEGER_API || 'http://localhost:16686';
+// TRACE_QUERY_API: endpoint for the tracing query API (Jaeger or Tempo compatible)
+const TRACE_QUERY_API = process.env.TRACE_QUERY_API || process.env.JAEGER_API || process.env.TEMPO_API || 'http://localhost:3100';
 
 async function waitFor(url, timeout = 30000) {
   const start = Date.now();
@@ -58,9 +59,9 @@ async function main() {
   console.log('Waiting for traces to be exported (10s)...');
   await new Promise((r) => setTimeout(r, 10000));
 
-  // query Jaeger API for traces for service name 'diagnosticox-backend'
-  const apiUrl = `${JAEGER_UI}/api/traces?service=diagnosticox-backend&limit=20`;
-  console.log('Querying Jaeger API at:', apiUrl);
+  // query trace backend (Tempo/Jaeger compatible) for traces for service 'diagnosticox-backend'
+  const apiUrl = `${TRACE_QUERY_API}/api/traces?service=diagnosticox-backend&limit=20`;
+  console.log('Querying trace API at:', apiUrl);
 
   try {
     const jresp = await fetch(apiUrl);
@@ -70,8 +71,23 @@ async function main() {
     }
     const payload = await jresp.json();
     const data = payload?.data || [];
+    // Look through the traces and their spans to ensure an auth.register span exists
+    let foundRegisterSpan = false;
     if (Array.isArray(data) && data.length > 0) {
-      console.log('Found traces in Jaeger — Smoke test SUCCESS');
+      for (const trace of data) {
+        const spans = trace?.spans || [];
+        for (const s of spans) {
+          if (s?.operationName === 'auth.register' || (s?.operationName && s.operationName.includes('auth.register'))) {
+            foundRegisterSpan = true;
+            break;
+          }
+        }
+        if (foundRegisterSpan) break;
+      }
+    }
+
+    if (foundRegisterSpan) {
+      console.log('Found auth.register span in trace backend — Smoke test SUCCESS');
       process.exit(0);
     }
     console.error('No traces found for service diagnosticox-backend');

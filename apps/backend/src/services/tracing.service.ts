@@ -23,10 +23,26 @@ export async function initTracing() {
     const { ConsoleSpanExporter, SimpleSpanProcessor } = await import('@opentelemetry/sdk-trace-base');
     const { getNodeAutoInstrumentations } = await import('@opentelemetry/auto-instrumentations-node');
 
+    // collect service metadata if available (allow overriding via env)
+    let svcVersion = process.env.SERVICE_VERSION || null;
+    try {
+      if (!svcVersion) {
+        // read package.json for backend service version
+        const pkg = await import('../../package.json');
+        svcVersion = pkg?.version || null;
+      }
+    } catch (err) {
+      // ignore
+    }
+
+    const os = await import('os');
+
     const sdk = new NodeSDK({
       resource: new Resource({
         [semanticConventions.SemanticResourceAttributes.SERVICE_NAME]: process.env.SERVICE_NAME || 'diagnosticox-backend',
+        [semanticConventions.SemanticResourceAttributes.SERVICE_VERSION]: svcVersion || process.env.npm_package_version || 'unknown',
         'deployment.environment': config.nodeEnv,
+        'host.name': os.hostname(),
       }),
       instrumentations: [getNodeAutoInstrumentations()],
     });

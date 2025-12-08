@@ -2,9 +2,9 @@ name: Tracing smoke test
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   tracing-smoke:
@@ -26,11 +26,40 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
-      - name: Start Jaeger all-in-one
+      - name: Prepare docker network
         run: |
-          docker run -d --rm --name jaeger -p 4318:4318 -p 16686:16686 jaegertracing/all-in-one:1.41
+          docker network create trace-net || true
 
-      - name: Start backend (tracing enabled)
+      - name: Start Tempo (trace store)
+        run: |
+          docker run -d --rm --name tempo --network trace-net -p 3100:3100 grafana/tempo:latest
+
+      - name: Start OpenTelemetry Collector
+        run: |
+          docker run -d --rm --name otelcol --network trace-net -p 4318:4318 -v $GITHUB_WORKSPACE/.github/tracing/otel-collector-config.yaml:/etc/otel/config.yaml otel/opentelemetry-collector-contrib:0.86.0 --config /etc/otel/config.yaml
+
+      - name: Start Grafana
+        run: |
+          docker run -d --rm --name grafana --network trace-net -p 3000:3000 grafana/grafana:latest
+
+      - name: Wait for Grafana
+        run: |
+          for i in {1..30}; do
+            if curl -sS -u admin:admin http://localhost:3000/api/health | grep -q ""; then
+              echo "Grafana ready"; break
+            fi
+            sleep 1
+          done
+
+      - name: Create Tempo datasource in Grafana
+        run: |
+          curl -s -u admin:admin -H "Content-Type: application/json" -X POST http://localhost:3000/api/datasources -d '{"name":"Tempo","type":"tempo","access":"proxy","url":"http://tempo:3100","isDefault":true}'
+
+      - name: Import dashboard into Grafana
+        run: |
+          curl -s -u admin:admin -H "Content-Type: application/json" -X POST http://localhost:3000/api/dashboards/db -d @.github/tracing/grafana-dashboard.json
+
+      - name: Start backend (tracing enabled, using collector)
         env:
           TRACING_ENABLED: 'true'
           TRACING_OTLP_ENDPOINT: 'http://localhost:4318/v1/traces'
@@ -38,9 +67,28 @@ jobs:
           pnpm --filter diagnosticox-backend dev &
           echo "backend started"
 
-      - name: Run tracing smoke test
+      - name: Run tracing smoke test (query Tempo)
+        env:
+          TRACE_QUERY_API: 'http://localhost:3100'
         run: node ./scripts/tracing-smoke-test.js
 
-      - name: Cleanup Jaeger container
+      - name: Snapshot grafana dashboard via API
+        run: |
+          # fetch dashboard object
+          curl -s -u admin:admin http://localhost:3000/api/dashboards/uid/diagnosticox-traces -o /tmp/dash.json
+          # create snapshot
+          SNAP=$(curl -s -u admin:admin -H "Content-Type: application/json" -X POST http://localhost:3000/api/snapshots -d @/tmp/dash.json)
+          echo "snapshot response: $SNAP"
+          if echo "$SNAP" | grep -q "url"; then
+            echo "Grafana snapshot created";
+          else
+            echo "Failed to create Grafana snapshot"; exit 6;
+          fi
+
+      - name: Cleanup tracing containers
         if: always()
-        run: docker stop jaeger || true
+        run: |
+          docker stop otelcol || true
+          docker stop tempo || true
+          docker stop grafana || true
+          docker network rm trace-net || true

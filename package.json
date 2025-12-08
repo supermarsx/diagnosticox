@@ -14,6 +14,7 @@
     "dev:frontend": "pnpm --filter diagnosticox-frontend run dev",
     "dev:infra": "docker compose -f docker-compose.dev.yml up -d",
     "down:infra": "docker compose -f docker-compose.dev.yml down",
+    "dev:light": "node ./scripts/dev-light.js",
     "validate": "pnpm --filter diagnosticox-backend run build && pnpm --filter diagnosticox-frontend run build"
   }
 }
