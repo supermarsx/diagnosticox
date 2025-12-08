@@ -1,9 +1,10 @@
 import { Router } from 'express';
 import { authService } from '../services/auth.service';
+import { idempotencyHandler } from '../middleware/idempotency.middleware';
 
 const router = Router();
 
-router.post('/register', async (req, res) => {
+router.post('/register', idempotencyHandler, async (req, res) => {
   try {
     const { email, password, full_name, organization_id, role } = req.body;
 
@@ -19,7 +20,7 @@ router.post('/register', async (req, res) => {
 });
 
 // Bootstrap endpoint: creates first organization and admin user on a fresh install
-router.post('/bootstrap', async (req, res) => {
+router.post('/bootstrap', idempotencyHandler, async (req, res) => {
   try {
     const { org_name, admin_email, admin_password, admin_full_name, org_id } = req.body;
 
