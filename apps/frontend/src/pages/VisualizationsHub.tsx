@@ -1,8 +1,10 @@
 import { useNavigate, Link } from 'react-router-dom';
 import {
   ArrowLeft, Calendar, MapPin, Box, Camera, Activity,
-  Eye, Film, Mic, Brain, FileText, BarChart3
+  Eye, Film, Mic, Brain, FileText, BarChart3, Sparkles,
 } from 'lucide-react';
+import { MermaidDiagram } from '../components/MermaidDiagram';
+import { generateSymptomMap, generateDifferentialFlow } from '../lib/mermaidGenerator';
 
 interface VisualizationsHubProps {
   user: any;
@@ -61,6 +63,48 @@ const visualizationTools = [
 
 export default function VisualizationsHub({ user }: VisualizationsHubProps) {
   const navigate = useNavigate();
+  const symptomChart = generateSymptomMap({
+    chiefComplaint: 'Persistent cough with fatigue',
+    symptoms: [
+      { name: 'Cough', severity: 4, onset: '3w', notes: 'Worse at night' },
+      { name: 'Fatigue', severity: 3, onset: '2w' },
+      { name: 'Mild dyspnea', severity: 2, onset: '1w' },
+      { name: 'Low-grade fever', severity: 2 },
+    ],
+    relations: [
+      { from: 'Cough', to: 'Mild dyspnea', note: 'Activity related' },
+      { from: 'Cough', to: 'Low-grade fever', note: 'Evening spikes' },
+    ],
+  });
+
+  const differentialChart = generateDifferentialFlow({
+    chiefComplaint: 'Persistent cough',
+    hypotheses: [
+      {
+        name: 'Post-viral bronchial hyperreactivity',
+        bucket: 'Infectious/Inflammatory',
+        likelihood: 0.45,
+        supporting: ['Recent URI', 'Night cough'],
+        refuting: ['No wheeze'],
+        plannedTests: ['Spirometry + bronchodilator'],
+      },
+      {
+        name: 'GERD-related cough',
+        bucket: 'Gastrointestinal',
+        likelihood: 0.25,
+        supporting: ['Nocturnal pattern'],
+        refuting: ['No heartburn'],
+        plannedTests: ['PPI trial'],
+      },
+      {
+        name: 'ACE-inhibitor cough',
+        bucket: 'Iatrogenic',
+        likelihood: 0.1,
+        supporting: ['Recent med change'],
+        plannedTests: ['Med review/hold'],
+      },
+    ],
+  });
 
   const quickStats = [
     { label: 'Total Visualizations', value: '6', icon: BarChart3, color: 'text-blue-600' },
@@ -120,6 +164,25 @@ export default function VisualizationsHub({ user }: VisualizationsHubProps) {
             );
           })}
         </div>
+
+        {/* Mermaid Visualizations */}
+        <section className="glass-card p-6 rounded-3xl shadow-md">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="glass-card-subtle p-3 rounded-xl">
+              <Sparkles className="h-6 w-6 text-indigo-600" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-gray-800">MermaidJS Diagnostics</h2>
+              <p className="text-sm text-gray-600">
+                Symptom map and differential flow generated locally for secure visualization.
+              </p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <MermaidDiagram title="Symptom Map" chart={symptomChart} />
+            <MermaidDiagram title="Differential Flow" chart={differentialChart} />
+          </div>
+        </section>
 
         {/* Visualization Tools Grid */}
         <div>
