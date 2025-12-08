@@ -10,7 +10,7 @@ processors:
 exporters:
   # export to Tempo via OTLP HTTP
   otlp/tempo:
-    endpoint: "http://tempo:4318/v1/traces"
+    endpoint: 'http://tempo:4318/v1/traces'
     tls:
       insecure: true
 

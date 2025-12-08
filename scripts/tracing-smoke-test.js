@@ -73,24 +73,41 @@ async function main() {
     const data = payload?.data || [];
     // Look through the traces and their spans to ensure an auth.register span exists
     let foundRegisterSpan = false;
+    let foundSessionId = false;
+    let foundUserId = false;
     if (Array.isArray(data) && data.length > 0) {
       for (const trace of data) {
         const spans = trace?.spans || [];
         for (const s of spans) {
           if (s?.operationName === 'auth.register' || (s?.operationName && s.operationName.includes('auth.register'))) {
             foundRegisterSpan = true;
-            break;
           }
+
+          // tags can appear as 'tags' array (Jaeger) or attributes object (other backends)
+          const tags = s?.tags || s?.attributes || [];
+          if (Array.isArray(tags)) {
+            for (const t of tags) {
+              const k = t?.key || t?.k || t?.name;
+              const v = t?.value || t?.v;
+              if (!k) continue;
+              if (k === 'session.id') foundSessionId = true;
+              if (k === 'user.id') foundUserId = true;
+            }
+          } else if (typeof tags === 'object') {
+            if (tags['session.id']) foundSessionId = true;
+            if (tags['user.id']) foundUserId = true;
+          }
+          if (foundRegisterSpan && foundSessionId && foundUserId) break;
         }
         if (foundRegisterSpan) break;
       }
     }
 
-    if (foundRegisterSpan) {
-      console.log('Found auth.register span in trace backend — Smoke test SUCCESS');
+    if (foundRegisterSpan && foundSessionId && foundUserId) {
+      console.log('Found auth.register span with session.id and user.id in trace backend — Smoke test SUCCESS');
       process.exit(0);
     }
-    console.error('No traces found for service diagnosticox-backend');
+    console.error('No traces found for service diagnosticox-backend with required attributes');
     process.exit(4);
   } catch (err) {
     console.error('Error querying Jaeger API:', err?.message || err);

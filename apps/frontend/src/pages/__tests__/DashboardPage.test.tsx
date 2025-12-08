@@ -8,7 +8,6 @@ jest.mock('../../services/apiService');
 describe('DashboardPage', () => {
   beforeEach(() => {
     (apiService as any).getPatients = jest.fn();
-    (apiService as any).getProblems = jest.fn();
   });
 
   it('renders patient list and supports filters and problem counts', async () => {
@@ -17,11 +16,9 @@ describe('DashboardPage', () => {
       { id: 'patient-2', first_name: 'Sarah', last_name: 'Johnson', date_of_birth: '1982-07-22', gender: 'Female', mrn: 'MRN002', organization_id: 'org-1', site_name: 'Downtown Clinic', status: 'stable', contact_email: 'sarah@example.com' },
     ];
 
-    (apiService as any).getPatients.mockResolvedValue({ patients: demo, total: demo.length });
-    (apiService as any).getProblems.mockImplementation(async (patientId: string) => {
-      if (patientId === 'patient-1') return { problems: [{ id: 'problem-1' }] };
-      return { problems: [] };
-    });
+    // server returns aggregated counts in patient.problem_count
+    const demoWithCounts = demo.map((p, i) => ({ ...p, problem_count: i === 0 ? 1 : 0 }));
+    (apiService as any).getPatients.mockResolvedValue({ patients: demoWithCounts, total: demoWithCounts.length });
 
     render(<DashboardPage user={{ full_name: 'Test User' }} onLogout={() => {}} />);
 

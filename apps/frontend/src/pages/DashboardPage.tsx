@@ -47,16 +47,11 @@ export default function DashboardPage({ user, onLogout }: DashboardPageProps) {
       setAllPatients(incoming);
       setPatients(incoming);
 
-      // Prefetch problem counts for patient summary (best-effort)
+      // use aggregated counts returned by backend when available
       const counts: Record<string, number> = {};
-      await Promise.all(incoming.map(async (p) => {
-        try {
-          const res = await apiService.getProblems(p.id);
-          counts[p.id] = res.problems?.length || 0;
-        } catch (e) {
-          counts[p.id] = 0;
-        }
-      }));
+      for (const p of incoming) {
+        counts[p.id] = (p as any).problem_count ?? 0;
+      }
       setProblemCounts(counts);
     } catch (err: any) {
       setError(err.message || 'Failed to load patients');

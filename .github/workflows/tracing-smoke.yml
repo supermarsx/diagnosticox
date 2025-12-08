@@ -38,9 +38,12 @@ jobs:
         run: |
           docker run -d --rm --name otelcol --network trace-net -p 4318:4318 -v $GITHUB_WORKSPACE/.github/tracing/otel-collector-config.yaml:/etc/otel/config.yaml otel/opentelemetry-collector-contrib:0.86.0 --config /etc/otel/config.yaml
 
-      - name: Start Grafana
+      - name: Start Grafana (with provisioning)
         run: |
-          docker run -d --rm --name grafana --network trace-net -p 3000:3000 grafana/grafana:latest
+          docker run -d --rm --name grafana --network trace-net -p 3000:3000 \
+            -v $GITHUB_WORKSPACE/.github/tracing/grafana/provisioning:/etc/grafana/provisioning \
+            -v $GITHUB_WORKSPACE/.github/tracing/grafana/dashboards:/var/lib/grafana/dashboards \
+            grafana/grafana:latest
 
       - name: Wait for Grafana
         run: |
@@ -79,11 +82,31 @@ jobs:
           # create snapshot
           SNAP=$(curl -s -u admin:admin -H "Content-Type: application/json" -X POST http://localhost:3000/api/snapshots -d @/tmp/dash.json)
           echo "snapshot response: $SNAP"
+          echo "$SNAP" > /tmp/grafana_snapshot_response.json
           if echo "$SNAP" | grep -q "url"; then
             echo "Grafana snapshot created";
           else
             echo "Failed to create Grafana snapshot"; exit 6;
           fi
+
+      - name: Upload Grafana snapshot artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: grafana-snapshot
+          path: /tmp/grafana_snapshot_response.json
+
+      - name: Render Grafana dashboard PNG
+        run: |
+          # try rendering the first panel of the dashboard to a PNG (safe-guard with || true)
+          curl -s -u admin:admin "http://localhost:3000/render/d-solo/diagnosticox-traces/diagnosticox-traces?panelId=1&width=1200&height=800" -o /tmp/diagnosticox_traces.png || true
+
+      - name: Upload Grafana PNG artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: grafana-dashboard-png
+          path: /tmp/diagnosticox_traces.png
 
       - name: Cleanup tracing containers
         if: always()

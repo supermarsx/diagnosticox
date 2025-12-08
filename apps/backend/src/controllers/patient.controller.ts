@@ -17,16 +17,22 @@ export class PatientController {
       const organizationId = req.tenantId || req.user!.organizationId;
       const { search, limit = '50', offset = '0' } = req.query;
 
-      let query = 'SELECT * FROM patients WHERE organization_id = ?';
+      // include problem_count via subquery to avoid N+1 requests
+      let query = `SELECT p.*, (
+        SELECT COUNT(*) FROM problems pr WHERE pr.patient_id = p.id AND pr.organization_id = ?
+      ) AS problem_count
+      FROM patients p WHERE p.organization_id = ?`;
       const params: any[] = [organizationId];
 
       if (search) {
-        query += ' AND (first_name LIKE ? OR last_name LIKE ? OR mrn LIKE ?)';
+        query += ' AND (p.first_name LIKE ? OR p.last_name LIKE ? OR p.mrn LIKE ?)';
         const searchPattern = `%${search}%`;
         params.push(searchPattern, searchPattern, searchPattern);
       }
 
-      query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
+      query += ' ORDER BY p.created_at DESC LIMIT ? OFFSET ?';
+      // note: params contains organizationId for subquery + organizationId for WHERE
+      params.unshift(organizationId);
       params.push(parseInt(limit as string), parseInt(offset as string));
 
       const patients = await this.db.query(query, params);

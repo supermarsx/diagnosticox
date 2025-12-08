@@ -10,7 +10,7 @@ Comprehensive build plan derived from `spec.md`. Organize into phases; mark item
 - [ ] Core entities: organizations, users, patients, problems, facts tables with validation; migrations + Prisma/TypeORM models.
  - [x] Problem list API: CRUD for patients, problems, facts; ETag/If-Match support; pagination + filters.
  - [ ] Frontend shell: Vite/React app frame, routing, layout, theme tokens; TanStack Query + auth context + error boundaries. (PKCE client helpers added to `apiService` + `AuthContext.pkceLogin`, LoginPage PKCE demo, Admin sessions UI + tests)
-- [ ] Patient list + overview UI: org/site filters, status chips, problem summaries; tie into patients/facts APIs.
+- [x] Patient list + overview UI: org/site filters, status chips, problem summaries; tie into patients/facts APIs.
  - [x] Logging & tracing base: structured JSON logger (pino) implemented; correlation IDs / structured request logging middleware added; OpenTelemetry tracing wiring: basic console-backed tracing implemented (backend + optional frontend). Note: console.* replaced across backend seeds, migrations, RBAC and security controller. Next: OTLP exporter wired for CI smoke-test + local collector support; added dev:light (sqlite) helper for minimal local startup.
 - [ ] CI bootstrap: lint/test/build jobs; Docker Compose dev stack (db, redis, minio stub).
 - [x] Add ETag/If-Match concurrency on patients and problems; disable caching on those reads.

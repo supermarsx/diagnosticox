@@ -24,6 +24,10 @@ CI smoke test
 
 - A GitHub Actions workflow has been added at `.github/workflows/tracing-smoke.yml` that boots a Jaeger all-in-one container, starts the backend with `TRACING_ENABLED=true` and `TRACING_OTLP_ENDPOINT=http://localhost:4318/v1/traces`, triggers an instrumented endpoint and queries the Jaeger API to assert traces were ingested. This provides a simple end-to-end check that tracing and OTLP export are wired correctly in CI.
 
+CI validation
+
+- The CI workflow now runs an OTEL Collector + Tempo + Grafana, triggers an instrumented endpoint and queries Tempo's trace API to assert the `auth.register` span exists and includes required attributes (`session.id` and `user.id`). The workflow also imports a static dashboard and creates a Grafana snapshot which is archived as a CI artifact for later inspection.
+
 Local developer testing
 
 You can run the local tracing/dev infra with docker-compose (file at `docker-compose.dev.yml`) and then start the backend pointing to the local jaeger collector:
@@ -47,6 +51,10 @@ pnpm dev:light
 ```
 
 This will start the backend in sqlite mode (DB_TYPE=sqlite) and run the frontend dev server — convenient for quick development and debugging.
+
+Grafana provisioning
+
+For local CI-like runs the repository includes Grafana provisioning files under `.github/tracing/grafana/` which pre-provisions a Tempo datasource and a minimal Diagnosticox traces dashboard. When running Grafana in CI or locally mount that directory into the Grafana container at `/etc/grafana/provisioning` and `/var/lib/grafana/dashboards` so the dashboard and datasource are loaded automatically.
 
 Notes
 

@@ -27,6 +27,9 @@ export interface Patient {
   id: string;
   organization_id: string;
   mrn?: string;
+  site_id?: string;
+  site_name?: string;
+  status?: 'active' | 'stable' | 'needs-review';
   first_name: string;
   last_name: string;
   date_of_birth: string;

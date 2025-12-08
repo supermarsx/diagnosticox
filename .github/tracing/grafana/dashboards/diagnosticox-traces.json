@@ -1,0 +1,19 @@
+{
+  "dashboard": {
+    "id": null,
+    "uid": "diagnosticox-traces",
+    "title": "Diagnosticox Traces",
+    "timezone": "browser",
+    "schemaVersion": 30,
+    "version": 1,
+    "panels": [
+      {
+        "type": "text",
+        "title": "Notes",
+        "gridPos": { "h": 3, "w": 24, "x": 0, "y": 0 },
+        "options": { "content": "This is a CI-imported dashboard used to snapshot tracing state in CI.", "mode": "markdown" }
+      }
+    ]
+  },
+  "overwrite": true
+}

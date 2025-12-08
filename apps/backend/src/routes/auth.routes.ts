@@ -43,6 +43,14 @@ router.post('/register', idempotencyHandler, async (req, res) => {
         // produce an access token with session claim
         const token = authService.generateToken(result.user.id, organization_id, role || 'clinician', sessionId);
 
+        // annotate span with useful attributes for downstream observability
+        try {
+          span.setAttribute('session.id', sessionId);
+          span.setAttribute('user.id', result.user.id);
+          span.setAttribute('organization.id', organization_id);
+          span.setAttribute('http.target', req.originalUrl);
+        } catch (_) {}
+
         res.status(201).json({ user: result.user, token, sessionId, refreshToken });
       } catch (error: any) {
         span.recordException(error);
@@ -105,6 +113,12 @@ router.post('/bootstrap', idempotencyHandler, async (req, res) => {
         const refreshToken = await refreshTokenService.create(sessionId, result.user.id, 60 * 60 * 24 * 30);
 
         const token = authService.generateToken(result.user.id, result.organizationId, 'admin', sessionId);
+        try {
+          span.setAttribute('session.id', sessionId);
+          span.setAttribute('user.id', result.user.id);
+          span.setAttribute('organization.id', result.organizationId);
+          span.setAttribute('http.target', req.originalUrl);
+        } catch (_) {}
         res.status(201).json({ organizationId: result.organizationId, user: result.user, token, sessionId, refreshToken });
       } catch (error: any) {
         span.recordException(error);
@@ -163,6 +177,12 @@ router.post('/login', async (req, res) => {
         const refreshToken = await refreshTokenService.create(sessionId, result.user.id, 60 * 60 * 24 * 30);
 
         const token = authService.generateToken(result.user.id, result.user.organization_id, result.user.role, sessionId);
+        try {
+          span.setAttribute('session.id', sessionId);
+          span.setAttribute('user.id', result.user.id);
+          span.setAttribute('organization.id', result.user.organization_id);
+          span.setAttribute('http.target', req.originalUrl);
+        } catch (_) {}
         res.json({ user: result.user, token, sessionId, refreshToken });
       } catch (error: any) {
         span.recordException(error);
@@ -252,6 +272,12 @@ router.post('/token/refresh', async (req, res) => {
 
         // issue new access token containing new sessionId
         const token = authService.generateToken(session.userId || 'unknown', session.organizationId || 'unknown', session.role || 'clinician', newSessionId);
+        try {
+          span.setAttribute('session.id', newSessionId);
+          span.setAttribute('user.id', session.userId || 'unknown');
+          span.setAttribute('organization.id', session.organizationId || 'unknown');
+          span.setAttribute('http.target', req.originalUrl);
+        } catch (_) {}
 
         return res.json({ token, sessionId: newSessionId, refreshToken: newRefresh });
       } catch (err: any) {
@@ -320,10 +346,14 @@ router.post('/token/revoke', async (req, res) => {
         if (refreshRow) {
           // revoke the single provided refresh token
           await refreshTokenService.revoke(refresh as string);
+          try { span.setAttribute('user.id', (refreshRow as any).user_id || (refreshRow as any).userId || 'unknown'); } catch (_) {}
         }
 
         // always revoke any refresh tokens tied to the session id
-        if (targetSession) await refreshTokenService.revokeBySession(targetSession);
+        if (targetSession) {
+          await refreshTokenService.revokeBySession(targetSession);
+          try { span.setAttribute('session.id', targetSession); } catch (_) {}
+        }
         await sessionService.destroySession(targetSession);
 
         return res.json({ ok: true });
