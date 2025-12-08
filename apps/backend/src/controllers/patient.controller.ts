@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { getDatabase } from '../config/database';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { Patient } from '../types';
+import { ensurePatientAccessible } from '../utils/tenancy';
 
 export class PatientController {
   private db = getDatabase();
@@ -110,10 +111,7 @@ export class PatientController {
       const { id } = req.params;
       const organizationId = req.tenantId || req.user!.organizationId;
 
-      const existing = await this.db.get(
-        'SELECT id FROM patients WHERE id = ? AND organization_id = ?',
-        [id, organizationId]
-      );
+      await ensurePatientAccessible(id, organizationId);
 
       if (!existing) {
         return res.status(404).json({ error: 'Patient not found' });

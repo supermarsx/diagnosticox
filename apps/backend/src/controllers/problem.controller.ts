@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { getDatabase } from '../config/database';
 import { AuthRequest } from '../middleware/auth.middleware';
+import { ensurePatientAccessible } from '../utils/tenancy';
 
 export class ProblemController {
   private db = getDatabase();
@@ -10,6 +11,8 @@ export class ProblemController {
     try {
       const { patientId } = req.params;
       const organizationId = req.tenantId || req.user!.organizationId;
+
+      await ensurePatientAccessible(patientId, organizationId);
 
       const problems = await this.db.query(
         `SELECT * FROM problems 
@@ -68,6 +71,8 @@ export class ProblemController {
       if (!patient_id || !problem_name) {
         return res.status(400).json({ error: 'Missing required fields' });
       }
+
+      await ensurePatientAccessible(patient_id, organizationId);
 
       const id = uuidv4();
       const now = new Date().toISOString();

@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { getDatabase } from '../config/database';
 import { AuthRequest } from '../middleware/auth.middleware';
+import { ensurePatientAccessible } from '../utils/tenancy';
 
 export class TreatmentTrialController {
   private db = getDatabase();
@@ -10,6 +11,8 @@ export class TreatmentTrialController {
     try {
       const { patientId } = req.params;
       const organizationId = req.tenantId || req.user!.organizationId;
+
+      await ensurePatientAccessible(patientId, organizationId);
 
       const trials = await this.db.query(
         `SELECT * FROM treatment_trials 
@@ -76,6 +79,8 @@ export class TreatmentTrialController {
       if (!patient_id || !problem_id || !trial_name || !intervention) {
         return res.status(400).json({ error: 'Missing required fields' });
       }
+
+      await ensurePatientAccessible(patient_id, organizationId);
 
       const id = uuidv4();
       const now = new Date().toISOString();

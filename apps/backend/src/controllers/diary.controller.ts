@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { getDatabase } from '../config/database';
 import { AuthRequest } from '../middleware/auth.middleware';
+import { ensurePatientAccessible } from '../utils/tenancy';
 
 export class DiaryController {
   private db = getDatabase();
@@ -11,6 +12,8 @@ export class DiaryController {
       const { patientId } = req.params;
       const organizationId = req.tenantId || req.user!.organizationId;
       const { start_date, end_date, entry_type } = req.query;
+
+      await ensurePatientAccessible(patientId, organizationId);
 
       let query = `SELECT * FROM patient_diary WHERE patient_id = ? AND organization_id = ?`;
       const params: any[] = [patientId, organizationId];
@@ -60,6 +63,8 @@ export class DiaryController {
       if (!patient_id || !entry_type) {
         return res.status(400).json({ error: 'Missing required fields' });
       }
+
+      await ensurePatientAccessible(patient_id, organizationId);
 
       const id = uuidv4();
       const now = new Date().toISOString();
