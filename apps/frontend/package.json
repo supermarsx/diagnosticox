@@ -1,5 +1,5 @@
 {
-  "name": "diagnosticox",
+  "name": "diagnosticox-frontend",
   "version": "1.0.0",
   "description": "Advanced AI-powered medical diagnosis platform with intelligent caching and pre-emptive data fetching",
   "private": false,

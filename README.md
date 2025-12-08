@@ -7,12 +7,14 @@ DiagnosticoX is a comprehensive, production-grade medical diagnosis platform fea
 ---
 
 ## Repository Structure
-- `src/`, `public/`, `index.html` - Vite + React 18 frontend.
-- `backend/` - optional Express/TypeScript prototype (source only; build artifacts removed).
-- `docs/guides/` - installation, deployment, and cache/testing guides.
-- `docs/reports/` - implementation notes, progress reports, and research summaries.
-- `docs/` - additional technical references.
-- `data/` - ICD/DSM and symptom research references.
+- `apps/frontend/` - Vite + React 18 application (primary UI).
+- `apps/backend/` - Express + TypeScript prototype API.
+- `docs/` - documentation index at `docs/README.md`.
+  - `docs/guides/` - setup, deployment, cache/testing guides.
+  - `docs/architecture/` - system design overview.
+  - `docs/reports/` - progress, research, and implementation reports.
+  - `docs/records/` - changelog and release history.
+- `data/` - ICD/DSM/symptom research references.
 - `user_input_files/` - preserved sample input artefacts for context.
 
 ---
@@ -210,39 +212,49 @@ DiagnosticoX is a comprehensive, production-grade medical diagnosis platform fea
 ```bash
 # Clone the repository
 git clone <repository-url>
-cd medical-diagnosis-frontend
+cd diagnosticox
 
-# Install dependencies
+# Install workspace dependencies (frontend + backend)
 pnpm install
 
-# Configure environment variables
+# Configure frontend environment variables
+cd apps/frontend
 cp .env.example .env
-# Edit .env with your API credentials
+# Edit .env with your API credentials, then return to repo root
+cd ../../
 
 # Start development server
-pnpm run dev
+pnpm --filter diagnosticox-frontend dev
 
 # Access at http://localhost:5173
+```
+
+### Backend (optional prototype)
+
+```bash
+cd apps/backend
+pnpm install
+pnpm dev
 ```
 
 ### Build for Production
 
 ```bash
 # Production build
-pnpm run build:prod
+pnpm --filter diagnosticox-frontend run build:prod
 
 # Analyze bundle size
-pnpm run build:analyze
+pnpm --filter diagnosticox-frontend run build:analyze
 
 # Preview production build
-pnpm run preview
+pnpm --filter diagnosticox-frontend run preview
 ```
 
 ---
 
 ## Environment Configuration
 
-Create a `.env` file in the project root:
+Create a `.env` file in `apps/frontend/`:
 
 ```env
 # WHO ICD-API (ICD-10/ICD-11)
@@ -408,28 +420,33 @@ src/pages/
 ### Available Scripts
 
 ```bash
-# Development
-pnpm run dev              # Start dev server with HMR
-pnpm run build            # Production build
-pnpm run build:prod       # Production build with optimization
-pnpm run build:analyze    # Build with bundle analyzer
-pnpm run preview          # Preview production build
+# Frontend development
+pnpm --filter diagnosticox-frontend run dev           # Start dev server with HMR
+pnpm --filter diagnosticox-frontend run build         # Production build
+pnpm --filter diagnosticox-frontend run build:prod    # Production build with optimization
+pnpm --filter diagnosticox-frontend run build:analyze # Bundle analyzer
+pnpm --filter diagnosticox-frontend run preview       # Preview production build
 
-# Testing
-pnpm run test             # Run Jest tests
-pnpm run test:watch       # Watch mode
-pnpm run test:coverage    # Generate coverage report
-pnpm run test:ci          # CI mode (no watch)
+# Backend development
+pnpm --filter diagnosticox-backend run dev            # Start API in watch mode
+pnpm --filter diagnosticox-backend run build          # Compile TypeScript
+pnpm --filter diagnosticox-backend run start          # Run compiled API
 
-# Code Quality
-pnpm run lint             # Run ESLint
-pnpm run format           # Run Prettier
-pnpm run format:check     # Check formatting
-pnpm run validate         # Type check + lint + format
+# Testing (frontend)
+pnpm --filter diagnosticox-frontend run test          # Run Jest tests
+pnpm --filter diagnosticox-frontend run test:watch    # Watch mode
+pnpm --filter diagnosticox-frontend run test:coverage # Coverage report
+pnpm --filter diagnosticox-frontend run test:ci       # CI mode (no watch)
+
+# Code Quality (frontend)
+pnpm --filter diagnosticox-frontend run lint          # Run ESLint
+pnpm --filter diagnosticox-frontend run format        # Run Prettier
+pnpm --filter diagnosticox-frontend run format:check  # Check formatting
+pnpm --filter diagnosticox-frontend run validate      # Type check + lint + format
 
 # Documentation
-pnpm run docs:generate    # Generate JSDoc documentation
-pnpm run docs:serve       # Serve documentation locally
+pnpm --filter diagnosticox-frontend run docs:generate # Generate JSDoc documentation
+pnpm --filter diagnosticox-frontend run docs:serve    # Serve documentation locally
 ```
 
 ### Code Quality Standards

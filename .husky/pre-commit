@@ -1,4 +1,4 @@
 #!/usr/bin/env sh
 
-# Run lint-staged without the Husky bootstrap helper to reduce repo clutter
-npx lint-staged
+# Run lint-staged against the frontend workspace package
+pnpm --filter ./apps/frontend exec lint-staged

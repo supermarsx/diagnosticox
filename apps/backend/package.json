@@ -1,5 +1,5 @@
 {
-  "name": "medical-diagnosis-backend",
+  "name": "diagnosticox-backend",
   "version": "1.0.0",
   "description": "Medical diagnosis application backend with PostgreSQL/SQLite support",
   "main": "dist/index.js",

@@ -1,9 +1,9 @@
 {
-  "*.{ts,tsx}": [
-    "eslint --fix",
-    "prettier --write"
+  "apps/frontend/**/*.{ts,tsx,js,jsx}": [
+    "pnpm --filter ./apps/frontend exec eslint --fix",
+    "pnpm --filter ./apps/frontend exec prettier --write"
   ],
-  "*.{json,md}": [
-    "prettier --write"
+  "apps/frontend/**/*.{json,md,css}": [
+    "pnpm --filter ./apps/frontend exec prettier --write"
   ]
 }
