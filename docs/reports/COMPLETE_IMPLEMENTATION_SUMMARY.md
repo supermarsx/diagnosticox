@@ -177,7 +177,7 @@ class OfflineStorageService {
 │   │   ├── routes/ (7 files)
 │   │   ├── migrations/
 │   │   └── seeds/
-│   └── data/medical_diagnosis.db (180KB)
+│   └── research/medical_diagnosis.db (180KB)
 │
 ├── medical-diagnosis-frontend/
 │   ├── src/
