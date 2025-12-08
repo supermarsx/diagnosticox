@@ -463,11 +463,11 @@ export const psychometricTests: PsychometricTest[] = [
   },
   {
     id: 'gpsq2',
-    name: 'Generic Psychological Safety Questionnaire (GPSQ-2)',
-    domain: 'Psychological safety',
-    items: 10,
+    name: 'Gender Preoccupation and Stability Questionnaire-2 (GPSQ-2)',
+    domain: 'Gender Identity',
+    items: 14,
     scale: 'Likert',
-    useCases: ['Team/individual psychological safety climate'],
+    useCases: ['Gender preoccupation, dysphoria monitoring'],
   },
   {
     id: 'beis10',
