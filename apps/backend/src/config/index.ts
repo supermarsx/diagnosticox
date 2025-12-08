@@ -1,6 +1,7 @@
 import dotenv from 'dotenv';
 
 dotenv.config();
+process.env.TZ = 'UTC'; // normalize server timestamps
 
 export const config = {
   port: parseInt(process.env.PORT || '3000', 10),

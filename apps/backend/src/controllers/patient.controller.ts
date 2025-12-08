@@ -2,9 +2,8 @@ import { Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { getDatabase } from '../config/database';
 import { AuthRequest } from '../middleware/auth.middleware';
-import { Patient } from '../types';
-import { ensurePatientAccessible } from '../utils/tenancy';
 import { writeAuditLog } from '../utils/audit';
+import { generateEtag } from '../utils/etag';
 
 export class PatientController {
   private db = getDatabase();
@@ -48,6 +47,8 @@ export class PatientController {
         return res.status(404).json({ error: 'Patient not found' });
       }
 
+      res.setHeader('ETag', generateEtag(patient));
+      res.setHeader('Cache-Control', 'no-store');
       res.json(patient);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -124,10 +125,23 @@ export class PatientController {
       const { id } = req.params;
       const organizationId = req.tenantId || req.user!.organizationId;
 
-      await ensurePatientAccessible(id, organizationId);
+      const existing = await this.db.get(
+        'SELECT * FROM patients WHERE id = ? AND organization_id = ?',
+        [id, organizationId]
+      );
 
       if (!existing) {
         return res.status(404).json({ error: 'Patient not found' });
+      }
+
+      // Require If-Match to prevent lost updates when multiple clients edit the same record.
+      const ifMatch = (req.headers['if-match'] as string | undefined)?.trim();
+      const currentEtag = generateEtag(existing);
+      if (!ifMatch) {
+        return res.status(428).json({ error: 'Missing If-Match header for concurrency control' });
+      }
+      if (ifMatch !== currentEtag) {
+        return res.status(412).json({ error: 'Precondition failed: resource has changed' });
       }
 
       const updates = req.body;
@@ -185,6 +199,8 @@ export class PatientController {
         userAgent: req.get('user-agent') || undefined,
       });
 
+      res.setHeader('ETag', generateEtag(patient));
+      res.setHeader('Cache-Control', 'no-store');
       res.json(patient);
     } catch (error: any) {
       res.status(500).json({ error: error.message });

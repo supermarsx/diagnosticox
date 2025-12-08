@@ -20,7 +20,7 @@ import reportRoutes from './routes/report.routes';
 import icdRoutes from './routes/icd.routes';
 import aiRoutes from './routes/ai.routes';
 import excelRoutes from './routes/excel.routes';
-import { v4 as uuidv4 } from 'uuid';
+import { requestContext } from './middleware/request-context.middleware';
 
 const app = express();
 
@@ -34,25 +34,8 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.text({ type: 'text/csv', limit: '5mb' }));
 
-// Correlation ID + request logging
-app.use((req, res, next) => {
-  (req as any).requestId = (req.headers['x-request-id'] as string) || uuidv4();
-  res.setHeader('x-request-id', (req as any).requestId);
-  const start = Date.now();
-  res.on('finish', () => {
-    const duration = Date.now() - start;
-    console.log(
-      JSON.stringify({
-        requestId: (req as any).requestId,
-        method: req.method,
-        path: req.originalUrl,
-        status: res.statusCode,
-        duration_ms: duration,
-      })
-    );
-  });
-  next();
-});
+// Correlation ID + structured request logging
+app.use(requestContext);
 
 // Health check
 app.get('/health', (req, res) => {
