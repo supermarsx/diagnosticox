@@ -10,6 +10,8 @@ import trialRoutes from './routes/trial.routes';
 import timelineRoutes from './routes/timeline.routes';
 import diaryRoutes from './routes/diary.routes';
 import securityRoutes from './routes/security.routes';
+import pivotRoutes from './routes/pivot.routes';
+import biasRoutes from './routes/bias.routes';
 
 const app = express();
 
@@ -35,6 +37,8 @@ app.use('/api/bayesian', bayesianRoutes);
 app.use('/api/trials', trialRoutes);
 app.use('/api/timeline', timelineRoutes);
 app.use('/api/diary', diaryRoutes);
+app.use('/api/pivots', pivotRoutes);
+app.use('/api/bias', biasRoutes);
 app.use('/api/security', securityRoutes);
 
 // Error handling

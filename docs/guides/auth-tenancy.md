@@ -26,6 +26,10 @@
 ## Audit Logging
 - Writes to patients, problems, timeline events, diary entries, trials/metrics emit audit rows (org/user/patient scoped) with IP/user-agent when available.
 
+## Pivot Library & Bias Guardrails
+- Pivots: `GET /api/pivots` (public + org), filters `type`, `category`, `is_public`; create via `POST /api/pivots` (admin/clinician).
+- Bias guardrails: `GET /api/bias/patient/:patientId`; record checkpoint via `POST /api/bias` with guardrail type, checkpoint question, alternatives/disconfirming evidence.
+
 ## Environment
 - JWT secret: `JWT_SECRET`
 - Allowed origins: `ALLOWED_ORIGINS`
