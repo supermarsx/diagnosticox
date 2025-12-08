@@ -21,6 +21,10 @@ export function authenticate(req: AuthRequest, res: Response, next: NextFunction
     const token = authHeader.substring(7);
     const decoded = authService.verifyToken(token);
     
+    if (!decoded.organizationId) {
+      return res.status(401).json({ error: 'Organization context missing in token' });
+    }
+
     req.user = decoded;
     req.tenantId = decoded.organizationId;
     next();

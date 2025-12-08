@@ -4,8 +4,8 @@ import { authenticate, enforceTenant, authorize } from '../middleware/auth.middl
 
 const router = Router();
 
-// All security routes require authentication
-router.use(authenticate, enforceTenant);
+// All security routes require authentication + admin role
+router.use(authenticate, enforceTenant, authorize('admin'));
 
 // Roles
 router.get('/roles', SecurityController.getRoles);
