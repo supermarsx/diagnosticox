@@ -3,16 +3,21 @@
 Comprehensive build plan derived from `spec.md`. Organize into phases; mark items as complete during execution.
 
 ## Foundations
-- [] Repo setup: confirm pnpm workspace wiring for frontend/backend/mobile; add base env samples with required keys noted.
-- [] Backend skeleton (Fastify/Nest): project scaffolding, lint/test config, shared types package; enable UTC timestamps.
-- [] Auth/OIDC: PKCE flow, JWT validation with org_id + roles claims; session cache (Redis); idempotency key middleware.
-- [] Multi-tenancy & RLS: CockroachDB schema with org_id + patient_id composites; per-role policies; seed org/admin user.
-- [] Core entities: organizations, users, patients, problems, facts tables with validation; migrations + Prisma/TypeORM models.
-- [] Problem list API: CRUD for patients, problems, facts; ETag/If-Match support; pagination + filters.
-- [] Frontend shell: Vite/React app frame, routing, layout, theme tokens; TanStack Query + auth context + error boundaries.
-- [] Patient list + overview UI: org/site filters, status chips, problem summaries; tie into patients/facts APIs.
-- [] Logging & tracing base: structured JSON logger, request IDs, OpenTelemetry wiring; dev/CI configs.
-- [] CI bootstrap: lint/test/build jobs; Docker Compose dev stack (db, redis, minio stub).
+- [x] Repo setup: confirm pnpm workspace wiring for frontend/backend/mobile; add base env samples with required keys noted.
+- [ ] Backend skeleton (Fastify/Nest): project scaffolding, lint/test config, shared types package; enable UTC timestamps.
+- [ ] Auth/OIDC: PKCE flow, JWT validation with org_id + roles claims; session cache (Redis); idempotency key middleware.
+- [ ] Multi-tenancy & RLS: CockroachDB schema with org_id + patient_id composites; per-role policies; seed org/admin user.
+- [ ] Core entities: organizations, users, patients, problems, facts tables with validation; migrations + Prisma/TypeORM models.
+- [ ] Problem list API: CRUD for patients, problems, facts; ETag/If-Match support; pagination + filters.
+- [ ] Frontend shell: Vite/React app frame, routing, layout, theme tokens; TanStack Query + auth context + error boundaries.
+- [ ] Patient list + overview UI: org/site filters, status chips, problem summaries; tie into patients/facts APIs.
+- [ ] Logging & tracing base: structured JSON logger, request IDs, OpenTelemetry wiring; dev/CI configs.
+- [ ] CI bootstrap: lint/test/build jobs; Docker Compose dev stack (db, redis, minio stub).
+- [x] Add ETag/If-Match concurrency on patients and problems; disable caching on those reads.
+- [x] Correlation IDs + structured request logging middleware.
+- [x] Enforce UTC runtime for backend processes.
+- [x] Frontend env validation + sample file for API base URL/tenant/feature flags.
+- [x] Root pnpm scripts + README quickstart for workspace commands.
 
 ## Timeline & Events
 - [] Data model: timeline_events table (step_change, sentinel, trial, test) with metadata; indexes for patient/date.

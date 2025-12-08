@@ -19,6 +19,16 @@ DiagnosticoX is a comprehensive, production-grade medical diagnosis platform fea
 
 ---
 
+## Quickstart (pnpm workspace)
+- Install deps: `pnpm install`
+- Frontend dev: `pnpm run dev:frontend` (http://localhost:5173)
+- Backend dev: `pnpm run dev:backend` (http://localhost:3000)
+- Lint/checks: `pnpm run lint` and `pnpm run format:check`
+- Tests: `pnpm run test`
+- Build (frontend): `pnpm run build:prod`
+
+---
+
 ## Features
 
 ### Core Clinical Capabilities

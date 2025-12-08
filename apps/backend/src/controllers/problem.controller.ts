@@ -4,6 +4,7 @@ import { getDatabase } from '../config/database';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { ensurePatientAccessible } from '../utils/tenancy';
 import { writeAuditLog } from '../utils/audit';
+import { generateEtag } from '../utils/etag';
 
 export class ProblemController {
   private db = getDatabase();
@@ -50,7 +51,10 @@ export class ProblemController {
         [id]
       );
 
-      res.json({ ...problem, hypotheses });
+      const payload = { ...problem, hypotheses };
+      res.setHeader('ETag', generateEtag(problem));
+      res.setHeader('Cache-Control', 'no-store');
+      res.json(payload);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -132,6 +136,16 @@ export class ProblemController {
         return res.status(404).json({ error: 'Problem not found' });
       }
 
+      // Concurrency guard
+      const ifMatch = (req.headers['if-match'] as string | undefined)?.trim();
+      const currentEtag = generateEtag(existing);
+      if (!ifMatch) {
+        return res.status(428).json({ error: 'Missing If-Match header for concurrency control' });
+      }
+      if (ifMatch !== currentEtag) {
+        return res.status(412).json({ error: 'Precondition failed: resource has changed' });
+      }
+
       const updates = req.body;
       const allowedFields = [
         'problem_name',
@@ -178,6 +192,8 @@ export class ProblemController {
         userAgent: req.get('user-agent') || undefined,
       });
 
+      res.setHeader('ETag', generateEtag(problem));
+      res.setHeader('Cache-Control', 'no-store');
       res.json(problem);
     } catch (error: any) {
       res.status(500).json({ error: error.message });

@@ -1,0 +1,17 @@
+{
+  "name": "diagnosticox-monorepo",
+  "private": true,
+  "packageManager": "pnpm@8",
+  "scripts": {
+    "lint": "pnpm --filter diagnosticox-frontend run lint",
+    "format:check": "pnpm --filter diagnosticox-frontend run format:check",
+    "test": "pnpm --filter diagnosticox-frontend run test",
+    "test:ci": "pnpm --filter diagnosticox-frontend run test",
+    "build": "pnpm --filter diagnosticox-frontend run build",
+    "build:prod": "pnpm --filter diagnosticox-frontend run build:prod",
+    "build:analyze": "pnpm --filter diagnosticox-frontend run build:analyze",
+    "dev:backend": "pnpm --filter diagnosticox-backend run dev",
+    "dev:frontend": "pnpm --filter diagnosticox-frontend run dev",
+    "validate": "pnpm --filter diagnosticox-backend run build && pnpm --filter diagnosticox-frontend run build"
+  }
+}
