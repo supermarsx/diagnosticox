@@ -162,11 +162,14 @@ const ptPT = {
     },
     navigation: {
       dashboard: 'Painel',
-      patients: 'Pacientes',
-      diagnosis: 'Diagnóstico',
-      analytics: 'Análises',
-      security: 'Segurança',
-      settings: 'Definições',
+        patients: 'Pacientes',
+        diagnosis: 'Diagnóstico',
+        analytics: 'Análises',
+        security: 'Segurança',
+        settings: 'Definições',
+        assessments: 'Avaliações',
+        icd: 'CID',
+    
     },
     usageModes: {
       clinicalSetting: 'Ambiente Clínico',
@@ -289,3 +292,5 @@ i18n
   });
 
 export default i18n;
+
+
