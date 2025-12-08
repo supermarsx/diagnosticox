@@ -116,6 +116,8 @@ export class ProblemController {
         userAgent: req.get('user-agent') || undefined,
       });
 
+      res.setHeader('ETag', generateEtag(problem));
+      res.setHeader('Cache-Control', 'no-store');
       res.status(201).json(problem);
     } catch (error: any) {
       res.status(500).json({ error: error.message });

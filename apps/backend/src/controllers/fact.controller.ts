@@ -4,6 +4,7 @@ import { getDatabase } from '../config/database';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { ensurePatientAccessible } from '../utils/tenancy';
 import { writeAuditLog } from '../utils/audit';
+import { generateEtag } from '../utils/etag';
 
 export class FactController {
   private db = getDatabase();
@@ -40,6 +41,7 @@ export class FactController {
       params.push(parseInt(limit as string, 10));
 
       const facts = await this.db.query(sql, params);
+      res.setHeader('Cache-Control', 'no-store');
       res.json({ facts });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -110,6 +112,8 @@ export class FactController {
         userAgent: req.get('user-agent') || undefined,
       });
 
+      res.setHeader('ETag', generateEtag(fact));
+      res.setHeader('Cache-Control', 'no-store');
       res.status(201).json({ fact });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -122,12 +126,21 @@ export class FactController {
       const organizationId = req.tenantId || req.user!.organizationId;
 
       const existing = await this.db.get(
-        'SELECT patient_id FROM facts WHERE id = ? AND organization_id = ?',
+        'SELECT * FROM facts WHERE id = ? AND organization_id = ?',
         [id, organizationId]
       );
 
       if (!existing) {
         return res.status(404).json({ error: 'Fact not found' });
+      }
+
+      const ifMatch = (req.headers['if-match'] as string | undefined)?.trim();
+      const currentEtag = generateEtag(existing);
+      if (!ifMatch) {
+        return res.status(428).json({ error: 'Missing If-Match header for concurrency control' });
+      }
+      if (ifMatch !== currentEtag) {
+        return res.status(412).json({ error: 'Precondition failed: resource has changed' });
       }
 
       const updates = req.body;
@@ -154,7 +167,8 @@ export class FactController {
         return res.status(400).json({ error: 'No valid fields to update' });
       }
 
-      fields.push('created_at = created_at');
+      fields.push('updated_at = ?');
+      values.push(new Date().toISOString());
       values.push(id);
 
       await this.db.execute(`UPDATE facts SET ${fields.join(', ')} WHERE id = ?`, values);
@@ -173,6 +187,8 @@ export class FactController {
         userAgent: req.get('user-agent') || undefined,
       });
 
+      res.setHeader('ETag', generateEtag(fact));
+      res.setHeader('Cache-Control', 'no-store');
       res.json({ fact });
     } catch (error: any) {
       res.status(500).json({ error: error.message });

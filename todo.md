@@ -8,12 +8,13 @@ Comprehensive build plan derived from `spec.md`. Organize into phases; mark item
 - [ ] Auth/OIDC: PKCE flow, JWT validation with org_id + roles claims; session cache (Redis); idempotency key middleware.
 - [ ] Multi-tenancy & RLS: CockroachDB schema with org_id + patient_id composites; per-role policies; seed org/admin user.
 - [ ] Core entities: organizations, users, patients, problems, facts tables with validation; migrations + Prisma/TypeORM models.
-- [ ] Problem list API: CRUD for patients, problems, facts; ETag/If-Match support; pagination + filters.
+- [x] Problem list API: CRUD for patients, problems, facts; ETag/If-Match support; pagination + filters.
 - [ ] Frontend shell: Vite/React app frame, routing, layout, theme tokens; TanStack Query + auth context + error boundaries.
 - [ ] Patient list + overview UI: org/site filters, status chips, problem summaries; tie into patients/facts APIs.
 - [ ] Logging & tracing base: structured JSON logger, request IDs, OpenTelemetry wiring; dev/CI configs.
 - [ ] CI bootstrap: lint/test/build jobs; Docker Compose dev stack (db, redis, minio stub).
 - [x] Add ETag/If-Match concurrency on patients and problems; disable caching on those reads.
+- [x] Add ETag/If-Match to facts and add updated_at column via migration; return ETag on create/update.
 - [x] Correlation IDs + structured request logging middleware.
 - [x] Enforce UTC runtime for backend processes.
 - [x] Frontend env validation + sample file for API base URL/tenant/feature flags.

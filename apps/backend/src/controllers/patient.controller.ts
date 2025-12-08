@@ -114,6 +114,8 @@ export class PatientController {
         userAgent: req.get('user-agent') || undefined,
       });
 
+      res.setHeader('ETag', generateEtag(patient));
+      res.setHeader('Cache-Control', 'no-store');
       res.status(201).json(patient);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
