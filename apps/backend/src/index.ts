@@ -13,6 +13,7 @@ import securityRoutes from './routes/security.routes';
 import pivotRoutes from './routes/pivot.routes';
 import biasRoutes from './routes/bias.routes';
 import factRoutes from './routes/fact.routes';
+import exportRoutes from './routes/export.routes';
 
 const app = express();
 
@@ -41,6 +42,7 @@ app.use('/api/diary', diaryRoutes);
 app.use('/api/pivots', pivotRoutes);
 app.use('/api/bias', biasRoutes);
 app.use('/api/facts', factRoutes);
+app.use('/api/export', exportRoutes);
 app.use('/api/security', securityRoutes);
 
 // Error handling
