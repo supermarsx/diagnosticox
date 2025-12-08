@@ -12,6 +12,11 @@ interface DashboardPageProps {
 export default function DashboardPage({ user, onLogout }: DashboardPageProps) {
   const navigate = useNavigate();
   const [patients, setPatients] = useState<Patient[]>([]);
+  const [allPatients, setAllPatients] = useState<Patient[]>([]);
+  const [selectedOrg, setSelectedOrg] = useState<string | null>(null);
+  const [selectedSite, setSelectedSite] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [problemCounts, setProblemCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isOffline, setIsOffline] = useState(false);
@@ -38,7 +43,21 @@ export default function DashboardPage({ user, onLogout }: DashboardPageProps) {
     
     try {
       const data = await apiService.getPatients();
-      setPatients(data.patients || []);
+      const incoming = data.patients || [];
+      setAllPatients(incoming);
+      setPatients(incoming);
+
+      // Prefetch problem counts for patient summary (best-effort)
+      const counts: Record<string, number> = {};
+      await Promise.all(incoming.map(async (p) => {
+        try {
+          const res = await apiService.getProblems(p.id);
+          counts[p.id] = res.problems?.length || 0;
+        } catch (e) {
+          counts[p.id] = 0;
+        }
+      }));
+      setProblemCounts(counts);
     } catch (err: any) {
       setError(err.message || 'Failed to load patients');
       console.error('Failed to load patients:', err);
@@ -59,6 +78,13 @@ export default function DashboardPage({ user, onLogout }: DashboardPageProps) {
     
     return age;
   };
+
+  const filteredPatients = patients.filter(p => {
+    if (selectedOrg && p.organization_id !== selectedOrg) return false;
+    if (selectedSite && p.site_name !== selectedSite) return false;
+    if (statusFilter && (p.status || 'active') !== statusFilter) return false;
+    return true;
+  });
 
   if (loading) {
     return (
@@ -169,7 +195,7 @@ export default function DashboardPage({ user, onLogout }: DashboardPageProps) {
               <div>
                 <p className="text-sm text-gray-600 font-medium mb-2">Total Patients</p>
                 <p className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                  {patients.length}
+                  {filteredPatients.length}
                 </p>
               </div>
               <div className="glass-card-subtle p-4 rounded-2xl">
@@ -232,12 +258,47 @@ export default function DashboardPage({ user, onLogout }: DashboardPageProps) {
         <div className="glass-card overflow-hidden">
           <div className="glass-header p-6">
             <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                  Patients
-                </h2>
-                <p className="text-sm text-gray-600 mt-1">Manage and monitor patient records</p>
-              </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-3">
+                    <select
+                      value={selectedOrg || ''}
+                      onChange={(e) => setSelectedOrg(e.target.value || null)}
+                      className="bg-white/10 border border-white/10 rounded px-3 py-1 text-sm"
+                    >
+                      <option value=''>All organizations</option>
+                      {[...new Set(allPatients.map(p => p.organization_id))].map(org => (
+                        <option key={org} value={org}>{org}</option>
+                      ))}
+                    </select>
+
+                    <select
+                      value={selectedSite || ''}
+                      onChange={(e) => setSelectedSite(e.target.value || null)}
+                      className="bg-white/10 border border-white/10 rounded px-3 py-1 text-sm"
+                    >
+                      <option value=''>All sites</option>
+                      {[...new Set(allPatients.map(p => p.site_name || ''))].filter(Boolean).map(site => (
+                        <option key={site} value={site}>{site}</option>
+                      ))}
+                    </select>
+
+                    <select
+                      value={statusFilter || ''}
+                      onChange={(e) => setStatusFilter(e.target.value || null)}
+                      className="bg-white/10 border border-white/10 rounded px-3 py-1 text-sm"
+                    >
+                      <option value=''>All statuses</option>
+                      <option value='active'>Active</option>
+                      <option value='stable'>Stable</option>
+                      <option value='needs-review'>Needs review</option>
+                    </select>
+                  </div>
+
+                  <h2 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                    Patients
+                  </h2>
+                  <p className="text-sm text-gray-600 mt-1">Manage and monitor patient records</p>
+                </div>
               <button className="glass-button-primary flex items-center gap-2">
                 <Plus className="h-5 w-5" />
                 Add Patient
@@ -248,7 +309,7 @@ export default function DashboardPage({ user, onLogout }: DashboardPageProps) {
           <div className="glass-divider"></div>
 
           <div className="divide-y divide-white/20">
-            {patients.length === 0 ? (
+            {filteredPatients.length === 0 ? (
               <div className="p-16 text-center">
                 <div className="glass-card-subtle p-8 rounded-3xl inline-block mb-4">
                   <Users className="h-16 w-16 text-gray-400 mx-auto" />

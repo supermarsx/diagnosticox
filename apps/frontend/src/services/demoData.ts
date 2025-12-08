@@ -17,8 +17,11 @@ export const demoUser = {
 export const demoPatients = [
   {
     id: 'patient-1',
+    site_id: 'site-1',
+    site_name: 'Downtown Clinic',
     organization_id: 'org-1',
     mrn: 'MRN001',
+    status: 'active',
     first_name: 'John',
     last_name: 'Doe',
     date_of_birth: '1975-03-15',
@@ -29,8 +32,11 @@ export const demoPatients = [
   },
   {
     id: 'patient-2',
+    site_id: 'site-1',
+    site_name: 'Downtown Clinic',
     organization_id: 'org-1',
     mrn: 'MRN002',
+    status: 'stable',
     first_name: 'Sarah',
     last_name: 'Johnson',
     date_of_birth: '1982-07-22',
