@@ -1,1 +1,23 @@
-{"version":"DSM-5-TR","instruments":[{"id":"phq9","name":"PHQ-9","domain":"Depression"},{"id":"gad7","name":"GAD-7","domain":"Anxiety"},{"id":"phq15","name":"PHQ-15","domain":"Somatic"},{"id":"pcl5","name":"PCL-5","domain":"PTSD"},{"id":"audit","name":"AUDIT","domain":"Alcohol Use"},{"id":"mmpi3","name":"MMPI-3","domain":"Personality"}]}
+{
+  "version": "DSM-5-TR",
+  "instruments": [
+    {"id": "phq9", "name": "PHQ-9", "domain": "Depression"},
+    {"id": "gad7", "name": "GAD-7", "domain": "Anxiety"},
+    {"id": "phq15", "name": "PHQ-15", "domain": "Somatic"},
+    {"id": "pcl5", "name": "PCL-5", "domain": "PTSD"},
+    {"id": "audit", "name": "AUDIT", "domain": "Alcohol Use"},
+    {"id": "mmpi3", "name": "MMPI-3", "domain": "Personality"},
+    {"id": "bdi", "name": "Beck Depression Inventory-II", "domain": "Depression"},
+    {"id": "bai", "name": "Beck Anxiety Inventory", "domain": "Anxiety"},
+    {"id": "pda", "name": "Pathological Demand Avoidance", "domain": "Autism profile"},
+    {"id": "raadsr", "name": "RAADS-R", "domain": "Autism"},
+    {"id": "catq", "name": "CAT-Q (Camouflaging Autistic Traits)", "domain": "Autism"},
+    {"id": "asrs18", "name": "ASRS v1.1 (18-item)", "domain": "ADHD"},
+    {"id": "vanderbilt", "name": "Vanderbilt ADHD", "domain": "ADHD (Pediatric)"},
+    {"id": "srs2", "name": "SRS-2", "domain": "Autism (Social)"},
+    {"id": "gds", "name": "GDS-15", "domain": "Geriatric Depression"},
+    {"id": "bsl23", "name": "BSL-23", "domain": "Borderline"},
+    {"id": "des", "name": "DES-II", "domain": "Dissociation"},
+    {"id": "pces", "name": "Positive Childhood Experiences", "domain": "Resilience"}
+  ]
+}
