@@ -37,6 +37,8 @@ const enUS = {
       analytics: 'Analytics',
       security: 'Security',
       settings: 'Settings',
+      assessments: 'Assessments',
+      icd: 'ICD',
     },
     usageModes: {
       clinicalSetting: 'Clinical Setting',
