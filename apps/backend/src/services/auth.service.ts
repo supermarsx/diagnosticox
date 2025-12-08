@@ -9,6 +9,37 @@ import { ensureOrganizationExists } from '../utils/tenancy';
 export class AuthService {
   private db = getDatabase();
 
+  async bootstrapAdmin(
+    orgName: string,
+    adminEmail: string,
+    adminPassword: string,
+    adminFullName: string,
+    orgId?: string
+  ): Promise<{ organizationId: string; user: Omit<User, 'password_hash'>; token: string }> {
+    const existingUser = await this.db.get('SELECT id FROM users LIMIT 1');
+    if (existingUser) {
+      throw new Error('Bootstrap allowed only on a fresh deployment with no users');
+    }
+
+    const organizationId = orgId || uuidv4();
+    const now = new Date().toISOString();
+
+    await this.db.execute(
+      `INSERT INTO organizations (id, name, created_at, updated_at) VALUES (?, ?, ?, ?)`,
+      [organizationId, orgName, now, now]
+    );
+
+    const { user, token } = await this.register(
+      adminEmail,
+      adminPassword,
+      adminFullName,
+      organizationId,
+      'admin'
+    );
+
+    return { organizationId, user, token };
+  }
+
   async register(
     email: string,
     password: string,
