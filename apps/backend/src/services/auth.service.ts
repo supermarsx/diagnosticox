@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { getDatabase } from '../config/database';
 import { config } from '../config';
 import { User } from '../types';
+import { ensureOrganizationExists } from '../utils/tenancy';
 
 export class AuthService {
   private db = getDatabase();
@@ -15,6 +16,8 @@ export class AuthService {
     organizationId: string,
     role: 'clinician' | 'admin' | 'resident' = 'clinician'
   ): Promise<{ user: Omit<User, 'password_hash'>; token: string }> {
+    await ensureOrganizationExists(organizationId);
+
     // Check if user exists
     const existing = await this.db.get(
       'SELECT id FROM users WHERE email = ?',
