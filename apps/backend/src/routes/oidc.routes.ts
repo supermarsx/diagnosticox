@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { cacheService } from '../services/cache.service';
+import { refreshTokenService } from '../services/refreshToken.service';
 import { idempotencyHandler } from '../middleware/idempotency.middleware';
 import { authService } from '../services/auth.service';
 import { sessionService } from '../services/session.service';
@@ -68,10 +69,8 @@ router.post('/pkce/complete', async (req, res) => {
 
     const sessionId = await sessionService.createSession({ userId, organizationId: payload.client_id, role: 'clinician' }, 60 * 60);
 
-    // generate a long-lived refresh token mapped to the session
-    const refreshToken = crypto.randomBytes(32).toString('hex');
-    await cacheService.set(`refresh:${refreshToken}`, sessionId, 60 * 60 * 24 * 30);
-    await cacheService.set(`session_refresh:${sessionId}`, refreshToken, 60 * 60 * 24 * 30);
+    // generate a long-lived refresh token persisted in DB
+    const refreshToken = await refreshTokenService.create(sessionId, userId, 60 * 60 * 24 * 30);
 
     const token = authService.generateToken(userId, payload.client_id, 'clinician', sessionId);
 
