@@ -42,7 +42,7 @@ Research comprehensive symptom databases, medical taxonomies, and symptom-diagno
 - Evaluate commercial vs free offerings
 
 ## Deliverables
-- Comprehensive research report in `/workspace/data/symptom_research.md`
+- Comprehensive research report in `/workspace/research/symptom_research.md`
 - Specific database and API recommendations
 - Implementation guidance for web applications
 

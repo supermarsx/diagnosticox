@@ -41,6 +41,6 @@ Research medical research APIs, clinical databases, and evidence-based medicine 
 - [x] 4.5 Final review and completion check
 
 ## Target Deliverable
-- Comprehensive report saved to `data/medical_apis_research.md`
+- Comprehensive report saved to `research/medical_apis_research.md`
 - Include specific API documentation, authentication methods, rate limiting details, and JavaScript integration patterns
 - Provide practical implementation guidance for each API category

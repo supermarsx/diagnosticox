@@ -38,7 +38,7 @@ if [ $? -eq 0 ]; then
     echo ""
     echo "🏥 Main application is in: diagnosticox/"
     echo "📚 Documentation is in: docs/"
-    echo "🔬 Research data is in: data/"
+    echo "🔬 Research data is in: research/"
     echo ""
     echo "Happy coding! 🎉"
 else

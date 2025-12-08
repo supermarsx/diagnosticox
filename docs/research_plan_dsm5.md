@@ -49,7 +49,7 @@ Research DSM-5 and DSM-5-TR psychiatric diagnostic criteria, assessment tools, a
 - Create practical implementation guidance
 
 ## Deliverable
-Comprehensive research report saved to `data/dsm5_research.md` with:
+Comprehensive research report saved to `research/dsm5_research.md` with:
 - Detailed findings for each research area
 - Implementation guidance and code examples
 - Source documentation and verification

@@ -4,7 +4,7 @@
 - `apps/frontend/`: Vite + React 18 UI, tests under `apps/frontend/src/services/__tests__/`, assets in `apps/frontend/public/`.
 - `apps/backend/`: Express + TypeScript prototype API; source in `apps/backend/src/`, env samples in `.env.example`.
 - `docs/`: `docs/README.md` index; guides in `docs/guides/`, architecture in `docs/architecture/`, reports in `docs/reports/`, changelog in `docs/records/CHANGELOG.md`.
-- `data/`: ICD/DSM/symptom research references.
+- `research/`: ICD/DSM/symptom research references.
 - Workspace managed by `pnpm-workspace.yaml`; run commands from repo root.
 
 ## Build, Test, and Development Commands

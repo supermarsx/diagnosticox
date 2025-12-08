@@ -52,7 +52,7 @@ Research ICD-10 and ICD-11 coding standards, API endpoints, data structures, and
 4. **Verification**: Cross-reference information from multiple sources
 
 ## Expected Deliverables
-- Comprehensive research report saved to `data/icd_research.md`
+- Comprehensive research report saved to `research/icd_research.md`
 - API endpoint documentation with examples
 - Implementation recommendations
 - Code samples and integration patterns

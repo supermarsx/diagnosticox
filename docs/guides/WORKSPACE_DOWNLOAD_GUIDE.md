@@ -70,7 +70,7 @@ cd workspace/
 - Testing reports
 - Deployment guides
 
-### Research Data (`data/`)
+### Research Data (`research/`)
 - DSM-5-TR psychiatric criteria
 - ICD-10/ICD-11 medical standards
 - Symptom database research

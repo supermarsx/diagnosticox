@@ -14,7 +14,7 @@ DiagnosticoX is a comprehensive, production-grade medical diagnosis platform fea
   - `docs/architecture/` - system design overview.
   - `docs/reports/` - progress, research, and implementation reports.
   - `docs/records/` - changelog and release history.
-- `data/` - ICD/DSM/symptom research references.
+- `research/` - ICD/DSM/symptom research references.
 - `user_input_files/` - preserved sample input artefacts for context.
 
 ---
