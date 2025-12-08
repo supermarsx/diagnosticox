@@ -1,9 +1,10 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { getDatabase } from '../config/database';
+import { AuthRequest } from '../middleware/auth.middleware';
 
 export class SecurityController {
   // Get all roles
-  static async getRoles(req: Request, res: Response) {
+  static async getRoles(req: AuthRequest, res: Response) {
     try {
       const db = getDatabase();
       const roles = await db.query('SELECT * FROM security_roles ORDER BY name');
@@ -15,7 +16,7 @@ export class SecurityController {
   }
 
   // Get role by ID
-  static async getRoleById(req: Request, res: Response) {
+  static async getRoleById(req: AuthRequest, res: Response) {
     try {
       const { id } = req.params;
       const db = getDatabase();
@@ -33,8 +34,12 @@ export class SecurityController {
   }
 
   // Get all users with their roles
-  static async getUsers(req: Request, res: Response) {
+  static async getUsers(req: AuthRequest, res: Response) {
     try {
+      const organizationId = req.tenantId || req.user?.organizationId;
+      if (!organizationId) {
+        return res.status(401).json({ error: 'Organization context required' });
+      }
       const db = getDatabase();
       const users = await db.query(`
         SELECT 
@@ -42,18 +47,16 @@ export class SecurityController {
           u.email,
           u.full_name AS name,
           u.created_at AS createdDate,
-          r.name AS role,
-          'd.name AS department,
+          u.role AS role,
+          NULL AS department,
           o.name AS organization,
           'active' AS status,
           0 AS mfaEnabled
         FROM users u
-        LEFT JOIN user_roles ur ON u.id = ur.user_id
-        LEFT JOIN security_roles r ON ur.role_id = r.id
-        LEFT JOIN departments d ON u.id = d.manager_id
         LEFT JOIN organizations o ON u.organization_id = o.id
+        WHERE u.organization_id = ?
         ORDER BY u.created_at DESC
-      `);
+      `, [organizationId]);
       
       res.json({ users });
     } catch (error: any) {
@@ -63,13 +66,17 @@ export class SecurityController {
   }
 
   // Get audit logs
-  static async getAuditLogs(req: Request, res: Response) {
+  static async getAuditLogs(req: AuthRequest, res: Response) {
     try {
       const { action, table_name, limit = 50 } = req.query;
+      const organizationId = req.tenantId || req.user?.organizationId;
+      if (!organizationId) {
+        return res.status(401).json({ error: 'Organization context required' });
+      }
       const db = getDatabase();
       
-      let sql = 'SELECT * FROM audit_logs WHERE 1=1';
-      const params: any[] = [];
+      let sql = 'SELECT * FROM audit_logs WHERE organization_id = ?';
+      const params: any[] = [organizationId];
       
       if (action) {
         sql += ' AND action = ?';
@@ -93,9 +100,14 @@ export class SecurityController {
   }
 
   // Create audit log entry
-  static async createAuditLog(req: Request, res: Response) {
+  static async createAuditLog(req: AuthRequest, res: Response) {
     try {
-      const { organization_id, user_id, patient_id, action, table_name, record_id, changes, ip_address, user_agent } = req.body;
+      const organizationId = req.tenantId || req.user?.organizationId;
+      if (!organizationId) {
+        return res.status(401).json({ error: 'Organization context required' });
+      }
+      const { patient_id, action, table_name, record_id, changes, ip_address, user_agent } = req.body;
+      const userId = req.user?.userId;
       const db = getDatabase();
       
       const id = `audit_${Date.now()}_${Math.random().toString(36).substring(7)}`;
@@ -103,7 +115,7 @@ export class SecurityController {
       await db.execute(`
         INSERT INTO audit_logs (id, organization_id, user_id, patient_id, action, table_name, record_id, changes, ip_address, user_agent)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `, [id, organization_id, user_id, patient_id, action, table_name, record_id, changes, ip_address, user_agent]);
+      `, [id, organizationId, userId, patient_id, action, table_name, record_id, changes, ip_address, user_agent]);
       
       res.status(201).json({ message: 'Audit log created', id });
     } catch (error: any) {
@@ -113,7 +125,7 @@ export class SecurityController {
   }
 
   // Get encryption keys
-  static async getEncryptionKeys(req: Request, res: Response) {
+  static async getEncryptionKeys(req: AuthRequest, res: Response) {
     try {
       const db = getDatabase();
       const keys = await db.query('SELECT * FROM encryption_keys ORDER BY created_date DESC');
@@ -125,7 +137,7 @@ export class SecurityController {
   }
 
   // Get certificates
-  static async getCertificates(req: Request, res: Response) {
+  static async getCertificates(req: AuthRequest, res: Response) {
     try {
       const db = getDatabase();
       const certificates = await db.query('SELECT * FROM certificates ORDER BY valid_until ASC');
@@ -137,7 +149,7 @@ export class SecurityController {
   }
 
   // Get consent records
-  static async getConsentRecords(req: Request, res: Response) {
+  static async getConsentRecords(req: AuthRequest, res: Response) {
     try {
       const db = getDatabase();
       const consents = await db.query('SELECT * FROM consent_records ORDER BY granted_date DESC');
@@ -149,7 +161,7 @@ export class SecurityController {
   }
 
   // Get sharing agreements
-  static async getSharingAgreements(req: Request, res: Response) {
+  static async getSharingAgreements(req: AuthRequest, res: Response) {
     try {
       const db = getDatabase();
       const agreements = await db.query('SELECT * FROM sharing_agreements WHERE status = ? ORDER BY start_date DESC', ['active']);
@@ -161,10 +173,11 @@ export class SecurityController {
   }
 
   // Get organizations
-  static async getOrganizations(req: Request, res: Response) {
+  static async getOrganizations(req: AuthRequest, res: Response) {
     try {
+      const organizationId = req.tenantId || req.user?.organizationId;
       const db = getDatabase();
-      const organizations = await db.query('SELECT * FROM organizations ORDER BY created_at DESC');
+      const organizations = await db.query('SELECT * FROM organizations WHERE id = ? ORDER BY created_at DESC', [organizationId]);
       res.json({ organizations });
     } catch (error: any) {
       console.error('Get organizations error:', error);
@@ -173,22 +186,15 @@ export class SecurityController {
   }
 
   // Get departments
-  static async getDepartments(req: Request, res: Response) {
+  static async getDepartments(req: AuthRequest, res: Response) {
     try {
-      const { organization_id } = req.query;
+      const organizationId = req.tenantId || req.user?.organizationId;
       const db = getDatabase();
       
-      let sql = 'SELECT * FROM departments';
-      const params: any[] = [];
-      
-      if (organization_id) {
-        sql += ' WHERE organization_id = ?';
-        params.push(organization_id);
-      }
-      
-      sql += ' ORDER BY name';
-      
-      const departments = await db.query(sql, params);
+      const departments = await db.query(
+        'SELECT * FROM departments WHERE organization_id = ? ORDER BY name',
+        [organizationId]
+      );
       res.json({ departments });
     } catch (error: any) {
       console.error('Get departments error:', error);
@@ -197,10 +203,15 @@ export class SecurityController {
   }
 
   // Get auth methods for user
-  static async getAuthMethods(req: Request, res: Response) {
+  static async getAuthMethods(req: AuthRequest, res: Response) {
     try {
       const { user_id } = req.params;
+      const organizationId = req.tenantId || req.user?.organizationId;
       const db = getDatabase();
+      const user = await db.get('SELECT id FROM users WHERE id = ? AND organization_id = ?', [user_id, organizationId]);
+      if (!user) {
+        return res.status(404).json({ error: 'User not found in this organization' });
+      }
       const methods = await db.query('SELECT * FROM auth_methods WHERE user_id = ? ORDER BY added_date DESC', [user_id]);
       res.json({ methods });
     } catch (error: any) {
@@ -210,10 +221,15 @@ export class SecurityController {
   }
 
   // Get trusted devices for user
-  static async getTrustedDevices(req: Request, res: Response) {
+  static async getTrustedDevices(req: AuthRequest, res: Response) {
     try {
       const { user_id } = req.params;
+      const organizationId = req.tenantId || req.user?.organizationId;
       const db = getDatabase();
+      const user = await db.get('SELECT id FROM users WHERE id = ? AND organization_id = ?', [user_id, organizationId]);
+      if (!user) {
+        return res.status(404).json({ error: 'User not found in this organization' });
+      }
       const devices = await db.query('SELECT * FROM trusted_devices WHERE user_id = ? ORDER BY added_date DESC', [user_id]);
       res.json({ devices });
     } catch (error: any) {
@@ -223,7 +239,7 @@ export class SecurityController {
   }
 
   // Get security policies
-  static async getSecurityPolicies(req: Request, res: Response) {
+  static async getSecurityPolicies(req: AuthRequest, res: Response) {
     try {
       const db = getDatabase();
       const policies = await db.query('SELECT * FROM security_policies ORDER BY name');
@@ -235,15 +251,16 @@ export class SecurityController {
   }
 
   // Get system metrics
-  static async getSystemMetrics(req: Request, res: Response) {
+  static async getSystemMetrics(req: AuthRequest, res: Response) {
     try {
+      const organizationId = req.tenantId || req.user?.organizationId;
       const db = getDatabase();
       
-      const totalUsers = await db.get('SELECT COUNT(*) as count FROM users');
-      const totalOrgs = await db.get('SELECT COUNT(*) as count FROM organizations');
-      const totalDepts = await db.get('SELECT COUNT(*) as count FROM departments');
-      const recentLogs = await db.get('SELECT COUNT(*) as count FROM audit_logs WHERE timestamp > datetime("now", "-24 hours")');
-      const criticalEvents = await db.get('SELECT COUNT(*) as count FROM audit_logs WHERE severity = "critical" AND timestamp > datetime("now", "-24 hours")');
+      const totalUsers = await db.get('SELECT COUNT(*) as count FROM users WHERE organization_id = ?', [organizationId]);
+      const totalDepts = await db.get('SELECT COUNT(*) as count FROM departments WHERE organization_id = ?', [organizationId]);
+      const recentLogs = await db.get('SELECT COUNT(*) as count FROM audit_logs WHERE organization_id = ? AND timestamp > datetime("now", "-24 hours")', [organizationId]);
+      const criticalEvents = await db.get('SELECT COUNT(*) as count FROM audit_logs WHERE organization_id = ? AND severity = "critical" AND timestamp > datetime("now", "-24 hours")', [organizationId]);
+      const totalOrgs = { count: 1 };
       
       res.json({
         metrics: {

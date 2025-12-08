@@ -9,7 +9,7 @@ export class PatientController {
 
   async list(req: AuthRequest, res: Response) {
     try {
-      const { organizationId } = req.user!;
+      const organizationId = req.tenantId || req.user!.organizationId;
       const { search, limit = '50', offset = '0' } = req.query;
 
       let query = 'SELECT * FROM patients WHERE organization_id = ?';
@@ -35,7 +35,7 @@ export class PatientController {
   async get(req: AuthRequest, res: Response) {
     try {
       const { id } = req.params;
-      const { organizationId } = req.user!;
+      const organizationId = req.tenantId || req.user!.organizationId;
 
       const patient = await this.db.get(
         'SELECT * FROM patients WHERE id = ? AND organization_id = ?',
@@ -54,7 +54,7 @@ export class PatientController {
 
   async create(req: AuthRequest, res: Response) {
     try {
-      const { organizationId } = req.user!;
+      const organizationId = req.tenantId || req.user!.organizationId;
       const {
         mrn,
         first_name,
@@ -108,7 +108,7 @@ export class PatientController {
   async update(req: AuthRequest, res: Response) {
     try {
       const { id } = req.params;
-      const { organizationId } = req.user!;
+      const organizationId = req.tenantId || req.user!.organizationId;
 
       const existing = await this.db.get(
         'SELECT id FROM patients WHERE id = ? AND organization_id = ?',
@@ -171,7 +171,7 @@ export class PatientController {
   async delete(req: AuthRequest, res: Response) {
     try {
       const { id } = req.params;
-      const { organizationId } = req.user!;
+      const organizationId = req.tenantId || req.user!.organizationId;
 
       const existing = await this.db.get(
         'SELECT id FROM patients WHERE id = ? AND organization_id = ?',

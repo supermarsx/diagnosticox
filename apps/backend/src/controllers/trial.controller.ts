@@ -9,7 +9,7 @@ export class TreatmentTrialController {
   async listForPatient(req: AuthRequest, res: Response) {
     try {
       const { patientId } = req.params;
-      const { organizationId } = req.user!;
+      const organizationId = req.tenantId || req.user!.organizationId;
 
       const trials = await this.db.query(
         `SELECT * FROM treatment_trials 
@@ -27,7 +27,7 @@ export class TreatmentTrialController {
   async get(req: AuthRequest, res: Response) {
     try {
       const { id } = req.params;
-      const { organizationId } = req.user!;
+      const organizationId = req.tenantId || req.user!.organizationId;
 
       const trial = await this.db.get(
         'SELECT * FROM treatment_trials WHERE id = ? AND organization_id = ?',
@@ -54,7 +54,8 @@ export class TreatmentTrialController {
 
   async create(req: AuthRequest, res: Response) {
     try {
-      const { organizationId, userId } = req.user!;
+      const organizationId = req.tenantId || req.user!.organizationId;
+      const { userId } = req.user!;
       const {
         patient_id,
         problem_id,
@@ -122,7 +123,7 @@ export class TreatmentTrialController {
   async update(req: AuthRequest, res: Response) {
     try {
       const { id } = req.params;
-      const { organizationId } = req.user!;
+      const organizationId = req.tenantId || req.user!.organizationId;
 
       const existing = await this.db.get(
         'SELECT id FROM treatment_trials WHERE id = ? AND organization_id = ?',
@@ -177,7 +178,7 @@ export class TreatmentTrialController {
   async addMetric(req: AuthRequest, res: Response) {
     try {
       const { trialId } = req.params;
-      const { organizationId } = req.user!;
+      const organizationId = req.tenantId || req.user!.organizationId;
 
       // Verify trial exists
       const trial = await this.db.get(

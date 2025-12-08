@@ -1,10 +1,10 @@
 import { Router } from 'express';
 import { treatmentTrialController } from '../controllers/trial.controller';
-import { authenticate } from '../middleware/auth.middleware';
+import { authenticate, enforceTenant } from '../middleware/auth.middleware';
 
 const router = Router();
 
-router.use(authenticate);
+router.use(authenticate, enforceTenant);
 
 router.get('/patient/:patientId', treatmentTrialController.listForPatient.bind(treatmentTrialController));
 router.get('/:id', treatmentTrialController.get.bind(treatmentTrialController));

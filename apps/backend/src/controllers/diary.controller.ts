@@ -9,7 +9,7 @@ export class DiaryController {
   async listForPatient(req: AuthRequest, res: Response) {
     try {
       const { patientId } = req.params;
-      const { organizationId } = req.user!;
+      const organizationId = req.tenantId || req.user!.organizationId;
       const { start_date, end_date, entry_type } = req.query;
 
       let query = `SELECT * FROM patient_diary WHERE patient_id = ? AND organization_id = ?`;
@@ -42,7 +42,7 @@ export class DiaryController {
 
   async create(req: AuthRequest, res: Response) {
     try {
-      const { organizationId } = req.user!;
+      const organizationId = req.tenantId || req.user!.organizationId;
       const {
         patient_id,
         entry_date,
@@ -99,7 +99,7 @@ export class DiaryController {
   async getStats(req: AuthRequest, res: Response) {
     try {
       const { patientId } = req.params;
-      const { organizationId } = req.user!;
+      const organizationId = req.tenantId || req.user!.organizationId;
       const { days = '30' } = req.query;
 
       const startDate = new Date();

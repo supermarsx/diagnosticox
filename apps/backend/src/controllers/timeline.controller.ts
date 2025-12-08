@@ -9,7 +9,7 @@ export class TimelineController {
   async listForPatient(req: AuthRequest, res: Response) {
     try {
       const { patientId } = req.params;
-      const { organizationId } = req.user!;
+      const organizationId = req.tenantId || req.user!.organizationId;
 
       const events = await this.db.query(
         `SELECT * FROM timeline_events 
@@ -26,7 +26,8 @@ export class TimelineController {
 
   async create(req: AuthRequest, res: Response) {
     try {
-      const { organizationId, userId } = req.user!;
+      const organizationId = req.tenantId || req.user!.organizationId;
+      const { userId } = req.user!;
       const {
         patient_id,
         problem_id,

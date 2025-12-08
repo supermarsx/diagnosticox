@@ -1,10 +1,10 @@
 import { Router } from 'express';
 import { bayesianController } from '../controllers/bayesian.controller';
-import { authenticate } from '../middleware/auth.middleware';
+import { authenticate, enforceTenant } from '../middleware/auth.middleware';
 
 const router = Router();
 
-router.use(authenticate);
+router.use(authenticate, enforceTenant);
 
 router.post('/calculate', bayesianController.calculate.bind(bayesianController));
 router.post('/calculate-both', bayesianController.calculateBoth.bind(bayesianController));

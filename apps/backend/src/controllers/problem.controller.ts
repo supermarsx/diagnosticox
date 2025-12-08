@@ -9,7 +9,7 @@ export class ProblemController {
   async listForPatient(req: AuthRequest, res: Response) {
     try {
       const { patientId } = req.params;
-      const { organizationId } = req.user!;
+      const organizationId = req.tenantId || req.user!.organizationId;
 
       const problems = await this.db.query(
         `SELECT * FROM problems 
@@ -27,7 +27,7 @@ export class ProblemController {
   async get(req: AuthRequest, res: Response) {
     try {
       const { id } = req.params;
-      const { organizationId } = req.user!;
+      const organizationId = req.tenantId || req.user!.organizationId;
 
       const problem = await this.db.get(
         'SELECT * FROM problems WHERE id = ? AND organization_id = ?',
@@ -54,7 +54,8 @@ export class ProblemController {
 
   async create(req: AuthRequest, res: Response) {
     try {
-      const { organizationId, userId } = req.user!;
+      const organizationId = req.tenantId || req.user!.organizationId;
+      const { userId } = req.user!;
       const {
         patient_id,
         problem_name,
@@ -102,7 +103,7 @@ export class ProblemController {
   async update(req: AuthRequest, res: Response) {
     try {
       const { id } = req.params;
-      const { organizationId } = req.user!;
+      const organizationId = req.tenantId || req.user!.organizationId;
 
       const existing = await this.db.get(
         'SELECT id FROM problems WHERE id = ? AND organization_id = ?',

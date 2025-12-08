@@ -243,7 +243,7 @@ Backend `.env` file:
 PORT=3000
 NODE_ENV=development
 DB_TYPE=sqlite
-SQLITE_DB_PATH=./data/medical_diagnosis.db
+SQLITE_DB_PATH=./research/medical_diagnosis.db
 JWT_SECRET=medical-diagnosis-secret-key-2025
 JWT_EXPIRES_IN=24h
 ALLOWED_ORIGINS=http://localhost:5173

@@ -3,7 +3,7 @@ const fs = require('fs');
 
 async function testDb() {
   const SQL = await initSqlJs();
-  const buffer = fs.readFileSync('./data/medical_diagnosis.db');
+  const buffer = fs.readFileSync('./research/medical_diagnosis.db');
   const db = new SQL.Database(buffer);
   
   const users = db.exec('SELECT email, password_hash FROM users');

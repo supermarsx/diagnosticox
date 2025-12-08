@@ -1,11 +1,11 @@
 import { Router } from 'express';
 import { SecurityController } from '../controllers/security.controller';
-import { authenticate } from '../middleware/auth.middleware';
+import { authenticate, enforceTenant } from '../middleware/auth.middleware';
 
 const router = Router();
 
 // All security routes require authentication
-router.use(authenticate);
+router.use(authenticate, enforceTenant);
 
 // Roles
 router.get('/roles', SecurityController.getRoles);

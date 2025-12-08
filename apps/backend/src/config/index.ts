@@ -16,7 +16,7 @@ export const config = {
       password: process.env.POSTGRES_PASSWORD || '',
     },
     sqlite: {
-      path: process.env.SQLITE_DB_PATH || './data/medical_diagnosis.db',
+      path: process.env.SQLITE_DB_PATH || './research/medical_diagnosis.db',
     },
   },
   
