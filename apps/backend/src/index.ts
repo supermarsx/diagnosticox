@@ -1,3 +1,6 @@
+// ensure Node uses UTC time for runtime operations
+process.env.TZ = process.env.TZ || 'UTC';
+
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
