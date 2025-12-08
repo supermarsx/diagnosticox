@@ -1,22 +1,23 @@
 import { getDatabase } from '../config/database';
+import logger from '../services/logger.service';
 import { v4 as uuidv4 } from 'uuid';
 
 async function seedSecurityDataOnly() {
   const db = getDatabase();
-  console.log('Seeding security data only...');
+  logger.info('Seeding security data only...');
 
   try {
     // Get existing user IDs and organization
     const users = await db.query('SELECT id, organization_id FROM users LIMIT 10');
     if (users.length === 0) {
-      console.error('No users found in database. Please run main seed first.');
+      logger.error('No users found in database. Please run main seed first.');
       process.exit(1);
     }
     const userIds = users.map((u: any) => u.id);
     const organizationId = (users[0] as any).organization_id;
 
     // Clear existing security data to avoid duplicates
-    console.log('Clearing existing security data...');
+    logger.info('Clearing existing security data...');
     await db.execute('DELETE FROM user_roles');
     await db.execute('DELETE FROM departments');
     await db.execute('DELETE FROM auth_methods');
@@ -26,7 +27,7 @@ async function seedSecurityDataOnly() {
     await db.execute('DELETE FROM security_policies');
 
     // 1. Assign roles to existing users
-    console.log('Assigning roles to users...');
+    logger.info('Assigning roles to users...');
     const userRoles = [
       { user_id: userIds[0], role_id: 1 },
       { user_id: userIds[1] || userIds[0], role_id: 2 },
@@ -46,7 +47,7 @@ async function seedSecurityDataOnly() {
     }
 
     // 2. Create departments
-    console.log('Creating departments...');
+    logger.info('Creating departments...');
     const departments = [
       { id: uuidv4(), organization_id: organizationId, name: 'Emergency Medicine', manager_id: userIds[2] || userIds[0], budget: 3500000, user_count: 42, location: 'Building A, Floor 1' },
       { id: uuidv4(), organization_id: organizationId, name: 'Internal Medicine', manager_id: userIds[3] || userIds[0], budget: 2800000, user_count: 35, location: 'Building B, Floor 2' },
@@ -67,7 +68,7 @@ async function seedSecurityDataOnly() {
     }
 
     // 3. Create MFA auth methods (matching actual schema: identifier, enabled, verified, last_used, metadata)
-    console.log('Creating authentication methods...');
+    logger.info('Creating authentication methods...');
     const authMethods = [
       { id: uuidv4(), user_id: userIds[0], method_type: 'totp', identifier: 'JBSWY3DPEHPK3PXP', enabled: 1, verified: 1, last_used: new Date().toISOString(), metadata: '{"device":"Phone"}' },
       { id: uuidv4(), user_id: userIds[0], method_type: 'sms', identifier: '+1-555-0123', enabled: 1, verified: 1, last_used: new Date(Date.now() - 86400000 * 2).toISOString(), metadata: '{"carrier":"AT&T"}' },
@@ -85,7 +86,7 @@ async function seedSecurityDataOnly() {
     }
 
     // 4. Create audit logs
-    console.log('Creating audit logs...');
+    logger.info('Creating audit logs...');
     const auditLogs = [
       { id: uuidv4(), user_id: userIds[0], action: 'LOGIN', resource_type: 'auth', resource_id: null, ip_address: '192.168.1.100', user_agent: 'Mozilla/5.0', status: 'success', severity: 'low', details: '{"method":"password"}', timestamp: new Date(Date.now() - 3600000 * 2).toISOString() },
       { id: uuidv4(), user_id: userIds[1] || userIds[0], action: 'UPDATE', resource_type: 'patient', resource_id: 'patient-123', ip_address: '192.168.1.105', user_agent: 'Mozilla/5.0', status: 'success', severity: 'medium', details: '{"fields":["diagnosis"]}', timestamp: new Date(Date.now() - 3600000 * 4).toISOString() },
@@ -108,7 +109,7 @@ async function seedSecurityDataOnly() {
     }
 
     // 5. Create encryption keys
-    console.log('Creating encryption keys...');
+    logger.info('Creating encryption keys...');
     const encryptionKeys = [
       { id: uuidv4(), name: 'Patient Data Encryption Key', algorithm: 'AES-256-GCM', key_size: 256, purpose: 'patient_data', status: 'active', key_hash: 'a1b2c3d4e5f6...', rotation_schedule: 90, last_rotated: new Date(Date.now() - 86400000 * 45).toISOString(), expires_at: new Date(Date.now() + 86400000 * 45).toISOString() },
       { id: uuidv4(), name: 'Database Encryption Key', algorithm: 'AES-256-GCM', key_size: 256, purpose: 'database', status: 'active', key_hash: 'b2c3d4e5f6g7...', rotation_schedule: 180, last_rotated: new Date(Date.now() - 86400000 * 90).toISOString(), expires_at: new Date(Date.now() + 86400000 * 90).toISOString() },
@@ -126,7 +127,7 @@ async function seedSecurityDataOnly() {
     }
 
     // 6. Create consent records
-    console.log('Creating consent records...');
+    logger.info('Creating consent records...');
     const patients = await db.query('SELECT id FROM patients LIMIT 5');
     const patientIds = patients.map((p: any) => p.id);
 
@@ -149,7 +150,7 @@ async function seedSecurityDataOnly() {
     }
 
     // 7. Create security policies
-    console.log('Creating security policies...');
+    logger.info('Creating security policies...');
     const policies = [
       { id: uuidv4(), name: 'Password Policy', policy_type: 'password', rules: '{"min_length":12,"require_uppercase":true,"require_lowercase":true,"require_numbers":true,"require_special":true,"expiry_days":90,"prevent_reuse":5}', enabled: 1, enforcement_level: 'strict' },
       { id: uuidv4(), name: 'Session Timeout Policy', policy_type: 'session', rules: '{"timeout_minutes":30,"idle_timeout_minutes":15,"require_reauth":true}', enabled: 1, enforcement_level: 'strict' },
@@ -165,18 +166,18 @@ async function seedSecurityDataOnly() {
       );
     }
 
-    console.log('\n✅ Security data seeded successfully!');
-    console.log('Summary:');
-    console.log(`- User roles: ${userRoles.length}`);
-    console.log(`- Departments: ${departments.length}`);
-    console.log(`- Auth methods: ${authMethods.length}`);
-    console.log(`- Audit logs: ${auditLogs.length}`);
-    console.log(`- Encryption keys: ${encryptionKeys.length}`);
-    console.log(`- Consent records: ${patientIds.length > 0 ? 5 : 0}`);
-    console.log(`- Security policies: ${policies.length}`);
+    logger.info('\n✅ Security data seeded successfully!');
+    logger.info('Summary:');
+    logger.info(`- User roles: ${userRoles.length}`);
+    logger.info(`- Departments: ${departments.length}`);
+    logger.info(`- Auth methods: ${authMethods.length}`);
+    logger.info(`- Audit logs: ${auditLogs.length}`);
+    logger.info(`- Encryption keys: ${encryptionKeys.length}`);
+    logger.info(`- Consent records: ${patientIds.length > 0 ? 5 : 0}`);
+    logger.info(`- Security policies: ${policies.length}`);
     
   } catch (error) {
-    console.error('Security seeding failed:', error);
+    logger.error({ err: error }, 'Security seeding failed');
     throw error;
   }
 }
@@ -186,7 +187,7 @@ async function run() {
     await seedSecurityDataOnly();
     process.exit(0);
   } catch (error) {
-    console.error('Failed:', error);
+    logger.error({ err: error }, 'Failed');
     process.exit(1);
   }
 }

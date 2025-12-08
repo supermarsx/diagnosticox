@@ -7,7 +7,8 @@ import { up as tokenAudit } from './005_token_audit';
 
 async function runMigrations() {
   try {
-    console.log('Running database migrations...');
+    const logger = (await import('../services/logger.service')).default;
+    logger.info('Running database migrations...');
     await initialSchema();
     await securitySchema();
     await factsUpdatedAt();
@@ -17,10 +18,10 @@ async function runMigrations() {
     await refreshTokens();
     // token audit table
     await tokenAudit();
-    console.log('Migrations completed successfully');
+    logger.info('Migrations completed successfully');
     process.exit(0);
   } catch (error) {
-    console.error('Migration failed:', error);
+    logger.error({ err: error }, 'Migration failed');
     process.exit(1);
   }
 }

@@ -1,8 +1,9 @@
 import { IDatabase } from '../config/database';
+import logger from '../services/logger.service';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function seedSecurityData(db: IDatabase) {
-  console.log('Seeding security data...');
+  logger.info('Seeding security data...');
 
   // Get existing user IDs
   const users = await db.query('SELECT id FROM users LIMIT 10');
@@ -139,5 +140,5 @@ export async function seedSecurityData(db: IDatabase) {
     );
   }
 
-  console.log('Security data seeded successfully');
+  logger.info('Security data seeded successfully');
 }

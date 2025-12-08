@@ -328,7 +328,8 @@ export async function up() {
   await db.execute(`CREATE INDEX IF NOT EXISTS idx_trials_patient ON treatment_trials(patient_id, status)`);
   await db.execute(`CREATE INDEX IF NOT EXISTS idx_diary_patient ON patient_diary(patient_id, entry_date)`);
 
-  console.log('Database migration completed successfully');
+  const logger = (await import('../services/logger.service')).default;
+  logger.info('Database migration completed successfully');
 }
 
 export async function down() {
@@ -345,5 +346,6 @@ export async function down() {
     await db.execute(`DROP TABLE IF EXISTS ${table}`);
   }
 
-  console.log('Database tables dropped successfully');
+  const logger = (await import('../services/logger.service')).default;
+  logger.info('Database tables dropped successfully');
 }

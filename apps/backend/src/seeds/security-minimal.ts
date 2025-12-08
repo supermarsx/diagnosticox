@@ -1,15 +1,16 @@
 import { getDatabase } from '../config/database';
+import logger from '../services/logger.service';
 import { v4 as uuidv4 } from 'uuid';
 
 async function seedSecurityDataMinimal() {
   const db = getDatabase();
-  console.log('Seeding minimal security data...');
+  logger.info('Seeding minimal security data...');
 
   try {
     // Get existing users with emails
     const users = await db.query('SELECT id, email, organization_id FROM users LIMIT 10');
     if (users.length === 0) {
-      console.error('No users found. Please run main seed first.');
+      logger.error('No users found. Please run main seed first.');
       process.exit(1);
     }
     const user = users[0] as any;
@@ -18,7 +19,7 @@ async function seedSecurityDataMinimal() {
     const organizationId = user.organization_id;
 
     // Clear existing data
-    console.log('Clearing existing security data...');
+    logger.info('Clearing existing security data...');
     await db.execute('DELETE FROM user_roles WHERE id IS NOT NULL');
     await db.execute('DELETE FROM departments WHERE id IS NOT NULL');
     await db.execute('DELETE FROM auth_methods WHERE id IS NOT NULL');
@@ -27,7 +28,7 @@ async function seedSecurityDataMinimal() {
     await db.execute('DELETE FROM consent_records WHERE id IS NOT NULL');
 
     // 1. Assign roles (user_roles table needs id)
-    console.log('Assigning roles...');
+    logger.info('Assigning roles...');
     for (let i = 0; i < Math.min(8, userIds.length); i++) {
       await db.execute(
         'INSERT INTO user_roles (id, user_id, role_id) VALUES (?, ?, ?)',
@@ -36,7 +37,7 @@ async function seedSecurityDataMinimal() {
     }
 
     // 2. Create departments
-    console.log('Creating departments...');
+    logger.info('Creating departments...');
     const depts = [
       ['Emergency Medicine', 3500000, 42, 'Building A, Floor 1'],
       ['Internal Medicine', 2800000, 35, 'Building B, Floor 2'],
@@ -50,7 +51,7 @@ async function seedSecurityDataMinimal() {
     }
 
     // 3. Create auth methods
-    console.log('Creating auth methods...');
+    logger.info('Creating auth methods...');
     const authMethods = [
       ['totp', 'JBSWY3DPEHPK3PXP', 1, 1, '{"device":"Phone"}'],
       ['sms', '+1-555-0123', 1, 1, '{"carrier":"AT&T"}'],
@@ -64,7 +65,7 @@ async function seedSecurityDataMinimal() {
     }
 
     // 4. Create audit logs (using existing schema from migration 001)
-    console.log('Creating audit logs...');
+    logger.info('Creating audit logs...');
     const auditLogs = [
       ['LOGIN', 'users', null, '{"method":"password"}', '192.168.1.100'],
       ['UPDATE', 'patients', 'patient-123', '{"fields":["diagnosis"]}', '192.168.1.105'],
@@ -81,7 +82,7 @@ async function seedSecurityDataMinimal() {
     }
 
     // 5. Create encryption keys
-    console.log('Creating encryption keys...');
+    logger.info('Creating encryption keys...');
     const keys = [
       ['Patient Data Encryption Key', 'AES-256-GCM', 256, 'patient_data', 'active', 45, 45],
       ['Database Encryption Key', 'AES-256-GCM', 256, 'database', 'active', 90, 90],
@@ -104,7 +105,7 @@ async function seedSecurityDataMinimal() {
     }
 
     // 6. Create consent records
-    console.log('Creating consent records...');
+    logger.info('Creating consent records...');
     const patients = await db.query('SELECT id, first_name, last_name FROM patients LIMIT 5');
     if (patients.length > 0) {
       const consents = [
@@ -131,10 +132,10 @@ async function seedSecurityDataMinimal() {
       }
     }
 
-    console.log('\n✅ Security data seeded successfully!');
+    logger.info('\n✅ Security data seeded successfully!');
     
   } catch (error) {
-    console.error('Seeding failed:', error);
+    logger.error({ err: error }, 'Seeding failed');
     throw error;
   }
 }
@@ -144,7 +145,7 @@ async function run() {
     await seedSecurityDataMinimal();
     process.exit(0);
   } catch (error) {
-    console.error('Failed:', error);
+    logger.error({ err: error }, 'Failed');
     process.exit(1);
   }
 }

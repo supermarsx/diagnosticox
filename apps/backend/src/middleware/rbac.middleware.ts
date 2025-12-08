@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import logger from '../services/logger.service';
 import { getDatabase } from '../config/database';
 
 export interface AuthRequest extends Request {
@@ -33,7 +34,7 @@ export async function hasPermission(userId: string, permission: string): Promise
     // Check if user has the specific permission
     return permissions.includes(permission);
   } catch (error) {
-    console.error('Permission check error:', error);
+    logger.error({ err: error }, 'Permission check error');
     return false;
   }
 }
@@ -53,7 +54,7 @@ export async function hasRole(userId: string, roleName: string): Promise<boolean
     
     return userRole?.name === roleName;
   } catch (error) {
-    console.error('Role check error:', error);
+    logger.error({ err: error }, 'Role check error');
     return false;
   }
 }
@@ -74,7 +75,7 @@ export function requirePermission(permission: string) {
       
       next();
     } catch (error: any) {
-      console.error('Permission middleware error:', error);
+      logger.error({ err: error }, 'Permission middleware error');
       res.status(500).json({ error: error.message });
     }
   };
@@ -96,7 +97,7 @@ export function requireRole(roleName: string) {
       
       next();
     } catch (error: any) {
-      console.error('Role middleware error:', error);
+      logger.error({ err: error }, 'Role middleware error');
       res.status(500).json({ error: error.message });
     }
   };
@@ -117,7 +118,7 @@ export async function requireAdmin(req: AuthRequest, res: Response, next: NextFu
     
     next();
   } catch (error: any) {
-    console.error('Admin middleware error:', error);
+    logger.error({ err: error }, 'Admin middleware error');
     res.status(500).json({ error: error.message });
   }
 }

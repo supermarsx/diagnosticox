@@ -1,4 +1,5 @@
 import { Response } from 'express';
+import logger from '../services/logger.service';
 import { getDatabase } from '../config/database';
 import { AuthRequest } from '../middleware/auth.middleware';
 
@@ -10,7 +11,7 @@ export class SecurityController {
       const roles = await db.query('SELECT * FROM security_roles ORDER BY name');
       res.json({ roles });
     } catch (error: any) {
-      console.error('Get roles error:', error);
+      logger.error({ err: error }, 'Get roles error');
       res.status(500).json({ error: error.message });
     }
   }
@@ -28,7 +29,7 @@ export class SecurityController {
       
       res.json({ role });
     } catch (error: any) {
-      console.error('Get role error:', error);
+      logger.error({ err: error }, 'Get role error');
       res.status(500).json({ error: error.message });
     }
   }
@@ -60,7 +61,7 @@ export class SecurityController {
       
       res.json({ users });
     } catch (error: any) {
-      console.error('Get users error:', error);
+      logger.error({ err: error }, 'Get users error');
       res.status(500).json({ error: error.message });
     }
   }
@@ -94,7 +95,7 @@ export class SecurityController {
       const logs = await db.query(sql, params);
       res.json({ logs });
     } catch (error: any) {
-      console.error('Get audit logs error:', error);
+      logger.error({ err: error }, 'Get audit logs error');
       res.status(500).json({ error: error.message });
     }
   }
@@ -119,7 +120,7 @@ export class SecurityController {
       
       res.status(201).json({ message: 'Audit log created', id });
     } catch (error: any) {
-      console.error('Create audit log error:', error);
+      logger.error({ err: error }, 'Create audit log error');
       res.status(500).json({ error: error.message });
     }
   }
@@ -131,7 +132,7 @@ export class SecurityController {
       const keys = await db.query('SELECT * FROM encryption_keys ORDER BY created_date DESC');
       res.json({ keys });
     } catch (error: any) {
-      console.error('Get encryption keys error:', error);
+      logger.error({ err: error }, 'Get encryption keys error');
       res.status(500).json({ error: error.message });
     }
   }
@@ -143,7 +144,7 @@ export class SecurityController {
       const certificates = await db.query('SELECT * FROM certificates ORDER BY valid_until ASC');
       res.json({ certificates });
     } catch (error: any) {
-      console.error('Get certificates error:', error);
+      logger.error({ err: error }, 'Get certificates error');
       res.status(500).json({ error: error.message });
     }
   }
@@ -155,7 +156,7 @@ export class SecurityController {
       const consents = await db.query('SELECT * FROM consent_records ORDER BY granted_date DESC');
       res.json({ consents });
     } catch (error: any) {
-      console.error('Get consent records error:', error);
+      logger.error({ err: error }, 'Get consent records error');
       res.status(500).json({ error: error.message });
     }
   }
@@ -167,7 +168,7 @@ export class SecurityController {
       const agreements = await db.query('SELECT * FROM sharing_agreements WHERE status = ? ORDER BY start_date DESC', ['active']);
       res.json({ agreements });
     } catch (error: any) {
-      console.error('Get sharing agreements error:', error);
+      logger.error({ err: error }, 'Get sharing agreements error');
       res.status(500).json({ error: error.message });
     }
   }
@@ -180,7 +181,7 @@ export class SecurityController {
       const organizations = await db.query('SELECT * FROM organizations WHERE id = ? ORDER BY created_at DESC', [organizationId]);
       res.json({ organizations });
     } catch (error: any) {
-      console.error('Get organizations error:', error);
+      logger.error({ err: error }, 'Get organizations error');
       res.status(500).json({ error: error.message });
     }
   }
@@ -206,7 +207,7 @@ export class SecurityController {
       const organization = await db.get('SELECT * FROM organizations WHERE id = ?', [id]);
       res.status(201).json({ organization });
     } catch (error: any) {
-      console.error('Create organization error:', error);
+      logger.error({ err: error }, 'Create organization error');
       res.status(500).json({ error: error.message });
     }
   }
@@ -223,7 +224,7 @@ export class SecurityController {
       );
       res.json({ departments });
     } catch (error: any) {
-      console.error('Get departments error:', error);
+      logger.error({ err: error }, 'Get departments error');
       res.status(500).json({ error: error.message });
     }
   }
@@ -241,7 +242,7 @@ export class SecurityController {
       const methods = await db.query('SELECT * FROM auth_methods WHERE user_id = ? ORDER BY added_date DESC', [user_id]);
       res.json({ methods });
     } catch (error: any) {
-      console.error('Get auth methods error:', error);
+      logger.error({ err: error }, 'Get auth methods error');
       res.status(500).json({ error: error.message });
     }
   }
@@ -259,7 +260,7 @@ export class SecurityController {
       const devices = await db.query('SELECT * FROM trusted_devices WHERE user_id = ? ORDER BY added_date DESC', [user_id]);
       res.json({ devices });
     } catch (error: any) {
-      console.error('Get trusted devices error:', error);
+      logger.error({ err: error }, 'Get trusted devices error');
       res.status(500).json({ error: error.message });
     }
   }
@@ -271,7 +272,7 @@ export class SecurityController {
       const policies = await db.query('SELECT * FROM security_policies ORDER BY name');
       res.json({ policies });
     } catch (error: any) {
-      console.error('Get security policies error:', error);
+      logger.error({ err: error }, 'Get security policies error');
       res.status(500).json({ error: error.message });
     }
   }
@@ -300,7 +301,7 @@ export class SecurityController {
         }
       });
     } catch (error: any) {
-      console.error('Get system metrics error:', error);
+      logger.error({ err: error }, 'Get system metrics error');
       res.status(500).json({ error: error.message });
     }
   }

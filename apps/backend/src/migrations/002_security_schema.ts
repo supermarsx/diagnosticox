@@ -192,7 +192,8 @@ export async function up() {
       ('4', 'Failed Login Attempts', 'Lock account after 5 failed attempts', 'active')
   `);
 
-  console.log('Security schema migration completed');
+  const logger = (await import('../services/logger.service')).default;
+  logger.info('Security schema migration completed');
 }
 
 export async function down() {
@@ -210,5 +211,6 @@ export async function down() {
   await db.execute('DROP TABLE IF EXISTS security_roles');
   await db.execute('DROP TABLE IF EXISTS security_policies');
   
-  console.log('Security schema migration rolled back');
+  const logger = (await import('../services/logger.service')).default;
+  logger.info('Security schema migration rolled back');
 }

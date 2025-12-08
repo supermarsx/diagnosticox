@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { getDatabase } from '../config/database';
 import { seedSecurityData } from './002_security_data';
+import logger from '../services/logger.service';
 
 // For demo: use a pre-computed bcryptjs hash of 'demo123'
 // Generated with: bcryptjs.hashSync('demo123', 10)
@@ -9,7 +10,7 @@ const DEMO_PASSWORD_HASH = '$2a$10$T.ShPYcVe6t52kUDF.8rHOIAhlTruvbrxjA2YnyYMAKL5
 export async function seed() {
   const db = getDatabase();
 
-  console.log('Seeding database with sample medical data...');
+  logger.info('Seeding database with sample medical data...');
 
   // Create organization
   const orgId = uuidv4();
@@ -19,7 +20,7 @@ export async function seed() {
     [orgId, 'General Medical Clinic', 'general-medical', new Date().toISOString(), new Date().toISOString()]
   );
 
-  console.log('Organization created');
+  logger.info('Organization created');
 
   // Create clinician user
   const userId = uuidv4();
@@ -39,7 +40,7 @@ export async function seed() {
     ]
   );
 
-  console.log('Clinician user created (email: dr.smith@clinic.com, password: demo123)');
+  logger.info('Clinician user created (email: dr.smith@clinic.com, password: demo123)');
 
   // Create sample patients
   const patient1Id = uuidv4();
@@ -84,7 +85,7 @@ export async function seed() {
     ]
   );
 
-  console.log('Sample patients created');
+  logger.info('Sample patients created');
 
   // Create problem for patient 1
   const problem1Id = uuidv4();
@@ -182,7 +183,7 @@ export async function seed() {
     ]
   );
 
-  console.log('Problem and hypotheses created for Patient 1');
+  logger.info('Problem and hypotheses created for Patient 1');
 
   // Create sample pivots
   const pivot1Id = uuidv4();
@@ -235,7 +236,7 @@ export async function seed() {
     ]
   );
 
-  console.log('Sample pivots created');
+  logger.info('Sample pivots created');
 
   // Create sample facts (vital signs)
   const fact1Id = uuidv4();
@@ -284,7 +285,7 @@ export async function seed() {
     ]
   );
 
-  console.log('Sample facts created');
+  logger.info('Sample facts created');
 
   // Create timeline event
   const event1Id = uuidv4();
@@ -309,7 +310,7 @@ export async function seed() {
     ]
   );
 
-  console.log('Timeline events created');
+  logger.info('Timeline events created');
 
   // Create patient diary entries
   const diary1Id = uuidv4();
@@ -332,25 +333,25 @@ export async function seed() {
     ]
   );
 
-  console.log('Patient diary entries created');
+  logger.info('Patient diary entries created');
 
-  console.log('\n=== Seed Data Summary ===');
-  console.log('Organization: General Medical Clinic');
-  console.log('Clinician: dr.smith@clinic.com / demo123');
-  console.log('Patients: 2 created (John Doe, Sarah Johnson)');
-  console.log('Problems: 1 active problem with 3 differential diagnoses');
-  console.log('Pivots: 2 diagnostic tests in library');
-  console.log('========================\n');
+  logger.info('\n=== Seed Data Summary ===');
+  logger.info('Organization: General Medical Clinic');
+  logger.info('Clinician: dr.smith@clinic.com / demo123');
+  logger.info('Patients: 2 created (John Doe, Sarah Johnson)');
+  logger.info('Problems: 1 active problem with 3 differential diagnoses');
+  logger.info('Pivots: 2 diagnostic tests in library');
+  logger.info('========================\n');
 }
 
 async function run() {
   try {
     await seed();
     await seedSecurityData(getDatabase());
-    console.log('Database seeded successfully');
+    logger.info('Database seeded successfully');
     process.exit(0);
   } catch (error) {
-    console.error('Seeding failed:', error);
+    logger.error({ err: error }, 'Seeding failed');
     process.exit(1);
   }
 }
