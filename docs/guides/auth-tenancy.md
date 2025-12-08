@@ -32,11 +32,13 @@
 - Facts: `GET /api/facts/patient/:patientId` to list clinical signals; create/update/delete via `POST /api/facts`, `PUT /api/facts/:id`, `DELETE /api/facts/:id` (admin/clinician writes, admin delete).
 - Export: `GET /api/export/patient/:patientId?format=json|csv` returns patient bundle (JSON) or facts CSV; scoped to caller org.
 - Export (CSV granular): `GET /api/export/patient/:patientId?format=csv&type=facts|problems|timeline|trials`.
+- Excel-like bundle: `GET /api/excel/patient/:patientId` returns boundary-separated CSV parts for patients/problems/facts/timeline/trials (zip-like payload).
 - FHIR (Phase 2 stub): `GET /api/fhir/patients/:patientId/observations|conditions` maps internal facts/problems to FHIR resources; `POST /api/fhir/observations` ingests an Observation into facts (admin/clinician).
 - Import (CSV): `POST /api/import/facts` with `text/csv` body (headers: patient_id,problem_id,fact_type,measurement_name,measurement_value,measurement_unit,value_text,measured_at,source); org/patient scoped and audited.
 - Templates: sample CSV at `research/import-templates/facts-template.csv`.
 - Reporting: `GET /api/reports/outcomes?cohort=...` returns org-scoped counts (patients, problems, trials, observations).
 - ICD local search (after running fetch scripts): `GET /api/icd/search?q=...&version=icd10|icd11` and `GET /api/icd/:version/:code`. Populate indexes via `scripts/fetch-icd10.sh` and `scripts/fetch-icd.sh` (ICD-11).
+- DSM dataset seed: `research/dsm/dsm5tr_tests.json` holds instrument metadata for UI use.
 
 ## Environment
 - JWT secret: `JWT_SECRET`
