@@ -18,6 +18,29 @@ router.post('/register', async (req, res) => {
   }
 });
 
+// Bootstrap endpoint: creates first organization and admin user on a fresh install
+router.post('/bootstrap', async (req, res) => {
+  try {
+    const { org_name, admin_email, admin_password, admin_full_name, org_id } = req.body;
+
+    if (!org_name || !admin_email || !admin_password || !admin_full_name) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    const result = await authService.bootstrapAdmin(
+      org_name,
+      admin_email,
+      admin_password,
+      admin_full_name,
+      org_id
+    );
+
+    res.status(201).json(result);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
