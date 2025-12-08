@@ -26,17 +26,65 @@ class PostgreSQLDatabase implements IDatabase {
   }
 
   async query(sql: string, params: any[] = []): Promise<any[]> {
-    const result = await this.pool.query(sql, params);
-    return result.rows;
+    // Try to create a DB span when tracing is enabled
+    try {
+      const api = await import('@opentelemetry/api');
+      const tracer = api.trace.getTracer('diagnosticox-db');
+      return tracer.startActiveSpan('db.query', { attributes: { db_system: 'postgres', db_statement: sql } }, async (span: any) => {
+        try {
+          const result = await this.pool.query(sql, params);
+          return result.rows;
+        } catch (err) {
+          span.recordException(err);
+          throw err;
+        } finally {
+          span.end();
+        }
+      });
+    } catch (_) {
+      const result = await this.pool.query(sql, params);
+      return result.rows;
+    }
   }
 
   async execute(sql: string, params: any[] = []): Promise<void> {
-    await this.pool.query(sql, params);
+    try {
+      const api = await import('@opentelemetry/api');
+      const tracer = api.trace.getTracer('diagnosticox-db');
+      await tracer.startActiveSpan('db.execute', { attributes: { db_system: 'postgres', db_statement: sql } }, async (span: any) => {
+        try {
+          await this.pool.query(sql, params);
+        } catch (err) {
+          span.recordException(err);
+          throw err;
+        } finally {
+          span.end();
+        }
+      });
+    } catch (_) {
+      await this.pool.query(sql, params);
+    }
   }
 
   async get(sql: string, params: any[] = []): Promise<any | null> {
-    const result = await this.pool.query(sql, params);
-    return result.rows[0] || null;
+    try {
+      const api = await import('@opentelemetry/api');
+      const tracer = api.trace.getTracer('diagnosticox-db');
+      return tracer.startActiveSpan('db.get', { attributes: { db_system: 'postgres', db_statement: sql } }, async (span: any) => {
+        try {
+          const result = await this.pool.query(sql, params);
+          return result.rows[0] || null;
+        } catch (err) {
+          span.recordException(err);
+          throw err;
+        } finally {
+          span.end();
+        }
+      });
+    } catch (_) {
+      const result = await this.pool.query(sql, params);
+      return result.rows[0] || null;
+    }
   }
 
   async close(): Promise<void> {
@@ -85,7 +133,47 @@ class SQLiteDatabase implements IDatabase {
     if (!this.db) return [];
 
     try {
-      const results = this.db.exec(sql, params);
+      // try adding a db span
+      try {
+        const api = await import('@opentelemetry/api');
+        const tracer = api.trace.getTracer('diagnosticox-db');
+        return await tracer.startActiveSpan('db.query', { attributes: { db_system: 'sqlite', db_statement: sql } }, async (span: any) => {
+          try {
+            const results = this.db!.exec(sql, params);
+            if (results.length === 0) return [];
+
+            const columns = results[0].columns;
+            const values = results[0].values;
+
+            return values.map((row: any[]) => {
+              const obj: any = {};
+              columns.forEach((col: string, idx: number) => {
+                obj[col] = row[idx];
+              });
+              return obj;
+            });
+          } catch (err) {
+            span.recordException(err);
+            throw err;
+          } finally {
+            span.end();
+          }
+        });
+      } catch (_) {
+        const results = this.db!.exec(sql, params);
+        if (results.length === 0) return [];
+
+        const columns = results[0].columns;
+        const values = results[0].values;
+
+        return values.map((row: any[]) => {
+          const obj: any = {};
+          columns.forEach((col: string, idx: number) => {
+            obj[col] = row[idx];
+          });
+          return obj;
+        });
+      }
       if (results.length === 0) return [];
 
       const columns = results[0].columns;
@@ -109,8 +197,25 @@ class SQLiteDatabase implements IDatabase {
     if (!this.db) return;
 
     try {
-      this.db.run(sql, params);
-      await this.save();
+      // try span
+      try {
+        const api = await import('@opentelemetry/api');
+        const tracer = api.trace.getTracer('diagnosticox-db');
+        await tracer.startActiveSpan('db.execute', { attributes: { db_system: 'sqlite', db_statement: sql } }, async (span: any) => {
+          try {
+            this.db!.run(sql, params);
+            await this.save();
+          } catch (err) {
+            span.recordException(err);
+            throw err;
+          } finally {
+            span.end();
+          }
+        });
+      } catch (_) {
+        this.db.run(sql, params);
+        await this.save();
+      }
     } catch (error) {
       logger.error({ error }, 'Execute error');
       throw error;
