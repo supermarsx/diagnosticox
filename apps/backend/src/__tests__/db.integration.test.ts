@@ -63,4 +63,88 @@ describe('DB-backed integration', () => {
     expect(getRes.body).toHaveProperty('first_name', 'Alice');
     expect(getRes.body).toHaveProperty('mrn', 'MRN-1234');
   }, 20000);
+
+  test('happy path: problem -> pivots -> bayesian -> trial -> metrics -> decision', async () => {
+    // bootstrap admin
+    const bootstrapRes = await request(app)
+      .post('/api/auth/bootstrap')
+      .send({ org_name: 'happy-org', admin_email: 'happy-admin@example.com', admin_password: 'pass123', admin_full_name: 'Happy Admin' })
+      .expect(201);
+
+    const token = bootstrapRes.body.token;
+    const orgId = bootstrapRes.body.organizationId;
+
+    // create patient
+    const patient = await request(app)
+      .post('/api/patients')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ first_name: 'Happy', last_name: 'Patient', date_of_birth: '1990-01-01' })
+      .expect(201);
+
+    const patientId = patient.body.id;
+
+    // create a problem
+    const problemRes = await request(app)
+      .post('/api/problems')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ patient_id: patientId, problem_name: 'Chronic cough' })
+      .expect(201);
+
+    const problemId = problemRes.body.id;
+
+    // create two pivots (diagnostic tests) in pivot library
+    const pivot1 = await request(app)
+      .post('/api/pivots')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ pivot_name: 'Chest X-Ray', pivot_type: 'test', category: 'imaging', likelihood_ratio_positive: 5, likelihood_ratio_negative: 0.3 })
+      .expect(201);
+
+    const pivot2 = await request(app)
+      .post('/api/pivots')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ pivot_name: 'Spirometry with bronchodilator', pivot_type: 'test', category: 'pulmonary', likelihood_ratio_positive: 3, likelihood_ratio_negative: 0.4 })
+      .expect(201);
+
+    // Bayesian recommendation: recommendTier for a given current_probability
+    const recommend = await request(app)
+      .post('/api/bayesian/recommend-tier')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ current_probability: 0.25 })
+      .expect(200);
+
+    expect(recommend.body).toHaveProperty('tier');
+
+    // Create a trial for the problem
+    const trialCreate = await request(app)
+      .post('/api/trials')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ patient_id: patientId, problem_id: problemId, trial_name: 'ICS Trial', intervention: 'Inhaled corticosteroid' })
+      .expect(201);
+
+    const trialId = trialCreate.body.id;
+
+    // Add metric - baseline
+    const metric1 = await request(app)
+      .post(`/api/trials/${trialId}/metrics`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ metric_name: 'Symptom NRS', metric_value: 8 })
+      .expect(201);
+
+    // Add follow-up metric showing improvement
+    const metric2 = await request(app)
+      .post(`/api/trials/${trialId}/metrics`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ metric_name: 'Symptom NRS', metric_value: 3 })
+      .expect(201);
+
+    // Update trial to decision point reached
+    const update = await request(app)
+      .put(`/api/trials/${trialId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ decision_point_reached: 1, decision_outcome: 'successful', status: 'completed' })
+      .expect(200);
+
+    expect(update.body).toHaveProperty('status', 'completed');
+    expect(update.body).toHaveProperty('decision_outcome', 'successful');
+  }, 30000);
 });
