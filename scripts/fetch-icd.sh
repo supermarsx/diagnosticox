@@ -42,6 +42,10 @@ psychiatric
 hematology
 dermatology
 musculoskeletal
+obstetric
+injury
+derm
+genitourinary
 EOF
 
 echo "Fetching ICD-11 search results..."

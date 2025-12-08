@@ -25,7 +25,7 @@ export class ExportController {
     try {
       const { patientId } = req.params;
       const organizationId = req.tenantId || req.user!.organizationId;
-      const { format = 'json' } = req.query;
+      const { format = 'json', type = 'facts' } = req.query;
 
       await ensurePatientAccessible(patientId, organizationId);
 
@@ -55,9 +55,22 @@ export class ExportController {
       const bundle = { patient, problems, facts, timeline, trials };
 
       if (String(format).toLowerCase() === 'csv') {
+        const which = String(type).toLowerCase();
+        let payload = facts;
+        let filename = `${patientId}_facts.csv`;
+        if (which === 'problems') {
+          payload = problems;
+          filename = `${patientId}_problems.csv`;
+        } else if (which === 'timeline') {
+          payload = timeline;
+          filename = `${patientId}_timeline.csv`;
+        } else if (which === 'trials') {
+          payload = trials;
+          filename = `${patientId}_trials.csv`;
+        }
         res.setHeader('Content-Type', 'text/csv');
-        res.setHeader('Content-Disposition', `attachment; filename="${patientId}_facts.csv"`);
-        return res.send(toCsv(facts));
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        return res.send(toCsv(payload));
       }
 
       res.json(bundle);
