@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { authService } from '../services/auth.service';
 import { sessionService } from '../services/session.service';
 import { cacheService } from '../services/cache.service';
+import { refreshTokenService } from '../services/refreshToken.service';
 import crypto from 'crypto';
 import { idempotencyHandler } from '../middleware/idempotency.middleware';
 
@@ -30,10 +31,8 @@ router.post('/register', idempotencyHandler, async (req, res) => {
 
     // create a short-lived session and a refresh token
     const sessionId = await sessionService.createSession({ userId: result.user.id, organizationId: organization_id, role: role || 'clinician' }, 60 * 60 * 24 * 7); // 7 days session
-    const refreshToken = crypto.randomBytes(32).toString('hex');
-    // store mapping both ways to support rotation/revocation
-    await cacheService.set(`refresh:${refreshToken}`, sessionId, 60 * 60 * 24 * 30); // 30 days
-    await cacheService.set(`session_refresh:${sessionId}`, refreshToken, 60 * 60 * 24 * 30);
+    // store a persistent refresh token in the DB and return it
+    const refreshToken = await refreshTokenService.create(sessionId, result.user.id, 60 * 60 * 24 * 30);
 
     // produce an access token with session claim
     const token = authService.generateToken(result.user.id, organization_id, role || 'clinician', sessionId);
@@ -62,9 +61,7 @@ router.post('/bootstrap', idempotencyHandler, async (req, res) => {
     );
     // create session + refresh token for bootstrap admin
     const sessionId = await sessionService.createSession({ userId: result.user.id, organizationId: result.organizationId, role: 'admin' }, 60 * 60 * 24 * 7);
-    const refreshToken = crypto.randomBytes(32).toString('hex');
-    await cacheService.set(`refresh:${refreshToken}`, sessionId, 60 * 60 * 24 * 30);
-    await cacheService.set(`session_refresh:${sessionId}`, refreshToken, 60 * 60 * 24 * 30);
+    const refreshToken = await refreshTokenService.create(sessionId, result.user.id, 60 * 60 * 24 * 30);
 
     const token = authService.generateToken(result.user.id, result.organizationId, 'admin', sessionId);
     res.status(201).json({ organizationId: result.organizationId, user: result.user, token, sessionId, refreshToken });
@@ -85,9 +82,7 @@ router.post('/login', async (req, res) => {
 
     // create session + refresh token
     const sessionId = await sessionService.createSession({ userId: result.user.id, organizationId: result.user.organization_id, role: result.user.role }, 60 * 60 * 24 * 7);
-    const refreshToken = crypto.randomBytes(32).toString('hex');
-    await cacheService.set(`refresh:${refreshToken}`, sessionId, 60 * 60 * 24 * 30);
-    await cacheService.set(`session_refresh:${sessionId}`, refreshToken, 60 * 60 * 24 * 30);
+    const refreshToken = await refreshTokenService.create(sessionId, result.user.id, 60 * 60 * 24 * 30);
 
     const token = authService.generateToken(result.user.id, result.user.organization_id, result.user.role, sessionId);
     res.json({ user: result.user, token, sessionId, refreshToken });
@@ -132,22 +127,17 @@ router.post('/token/refresh', async (req, res) => {
     const incoming = req.body?.refreshToken || req.body?.refresh_token;
     if (!incoming) return res.status(400).json({ error: 'Missing refreshToken' });
 
-    const sessionId = await cacheService.get(`refresh:${incoming}`);
-    if (!sessionId) return res.status(401).json({ error: 'Invalid refresh token' });
+    const row = await refreshTokenService.findByToken(incoming);
+    if (!row || row.revoked) return res.status(401).json({ error: 'Invalid refresh token' });
 
+    const sessionId = row.session_id as string;
     const session = await sessionService.getSession(sessionId);
     if (!session) return res.status(401).json({ error: 'Invalid session' });
 
     // rotate: create a new session and refresh token, delete old keys
     const newSessionId = await sessionService.createSession(session, 60 * 60 * 24 * 7);
-    const newRefresh = crypto.randomBytes(32).toString('hex');
-
-    await cacheService.set(`refresh:${newRefresh}`, newSessionId, 60 * 60 * 24 * 30);
-    await cacheService.set(`session_refresh:${newSessionId}`, newRefresh, 60 * 60 * 24 * 30);
-
-    // cleanup old
-    await cacheService.del(`refresh:${incoming}`);
-    await cacheService.del(`session_refresh:${sessionId}`);
+    // rotate in the DB (revoke old, insert new)
+    const newRefresh = await refreshTokenService.rotate(incoming, newSessionId);
     await sessionService.destroySession(sessionId);
 
     // issue new access token containing new sessionId
@@ -178,9 +168,14 @@ router.post('/token/revoke', async (req, res) => {
     if (!targetSession) return res.status(400).json({ error: 'Missing token/sessionId' });
 
     // remove potential refresh mapping and session
-    const refreshToken = await cacheService.get(`session_refresh:${targetSession}`);
-    if (refreshToken) await cacheService.del(`refresh:${refreshToken}`);
-    await cacheService.del(`session_refresh:${targetSession}`);
+    const refreshRow = await refreshTokenService.findByToken((refresh as string) || '');
+    if (refreshRow) {
+      // revoke the single provided refresh token
+      await refreshTokenService.revoke(refresh as string);
+    }
+
+    // always revoke any refresh tokens tied to the session id
+    if (targetSession) await refreshTokenService.revokeBySession(targetSession);
     await sessionService.destroySession(targetSession);
 
     return res.json({ ok: true });
