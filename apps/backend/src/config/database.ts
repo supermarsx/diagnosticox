@@ -2,6 +2,7 @@ import initSqlJs, { Database as SqlJsDatabase } from 'sql.js';
 import { Pool } from 'pg';
 import { config } from '../config';
 import fs from 'fs';
+import { logger } from '../services/logger.service';
 import path from 'path';
 
 export interface IDatabase {
@@ -98,7 +99,7 @@ class SQLiteDatabase implements IDatabase {
         return obj;
       });
     } catch (error) {
-      console.error('Query error:', error);
+      logger.error({ error }, 'Query error');
       return [];
     }
   }
@@ -111,7 +112,7 @@ class SQLiteDatabase implements IDatabase {
       this.db.run(sql, params);
       await this.save();
     } catch (error) {
-      console.error('Execute error:', error);
+      logger.error({ error }, 'Execute error');
       throw error;
     }
   }

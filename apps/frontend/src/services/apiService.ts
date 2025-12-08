@@ -18,6 +18,7 @@ class ApiService {
 
   constructor() {
     this.token = localStorage.getItem('auth_token');
+    this.refreshToken = localStorage.getItem('refresh_token');
     
     // Monitor online/offline status
     window.addEventListener('online', () => {
@@ -35,9 +36,16 @@ class ApiService {
     localStorage.setItem('auth_token', token);
   }
 
+  setRefreshToken(refresh: string | null) {
+    this.refreshToken = refresh;
+    if (refresh) localStorage.setItem('refresh_token', refresh);
+    else localStorage.removeItem('refresh_token');
+  }
+
   clearToken() {
     this.token = null;
     localStorage.removeItem('auth_token');
+    this.setRefreshToken(null);
   }
 
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -58,6 +66,18 @@ class ApiService {
 
       if (!response.ok) {
         if (response.status === 401) {
+          // Try a single automatic refresh + retry when a refresh token is present
+          if (this.refreshToken) {
+            const didRefresh = await this.tryRefresh();
+            if (didRefresh) {
+              // retry original request with new token
+              if (this.token) headers['Authorization'] = `Bearer ${this.token}`;
+              const retry = await fetch(`${API_BASE_URL}${endpoint}`, { ...options, headers });
+              if (retry.ok) return retry.json();
+            }
+          }
+
+          // fall back to clearing tokens and redirecting to login
           this.clearToken();
           window.location.href = '/';
           throw new Error('Unauthorized');
@@ -115,6 +135,36 @@ class ApiService {
     offlineStorage.updateSyncTimestamp();
   }
 
+  /**
+   * Try to refresh the access token using the stored refresh token.
+   * Returns true when refresh succeeded and new token is set.
+   */
+  private async tryRefresh(): Promise<boolean> {
+    if (!this.refreshToken) return false;
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/token/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: this.refreshToken }),
+      });
+
+      if (!res.ok) return false;
+
+      const data = await res.json();
+      if (data?.token) {
+        this.setToken(data.token);
+      }
+      if (data?.refreshToken) {
+        this.setRefreshToken(data.refreshToken);
+      }
+
+      return true;
+    } catch (err) {
+      return false;
+    }
+  }
+
   // Auth
   async login(email: string, password: string) {
     try {
@@ -124,6 +174,9 @@ class ApiService {
       });
       
       this.setToken(data.token);
+      if ((data as any).refreshToken) {
+        this.setRefreshToken((data as any).refreshToken);
+      }
       return data;
     } catch (error) {
       // Fallback to demo mode for production when backend is unavailable
@@ -141,7 +194,17 @@ class ApiService {
     });
     
     this.setToken(data.token);
+    if ((data as any).refreshToken) {
+      this.setRefreshToken((data as any).refreshToken);
+    }
     return data;
+  }
+
+  /**
+   * Public wrapper around internal request for UI usage. Returns JSON typed T.
+   */
+  async requestPublic<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    return this.request<T>(endpoint, options);
   }
 
   // Patients

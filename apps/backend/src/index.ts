@@ -11,6 +11,7 @@ process.env.TZ = process.env.TZ || 'UTC';
  * useful startup values for diagnostics (database type and Node environment).
  */
 import express from 'express';
+import { logger } from './services/logger.service';
 import cors from 'cors';
 import helmet from 'helmet';
 import { config } from './config';
@@ -80,7 +81,7 @@ app.use('/api/security', securityRoutes);
 
 // Error handling
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error('Error:', err);
+  logger.error({ err }, 'Unhandled error in request pipeline');
   res.status(err.status || 500).json({
     error: err.message || 'Internal server error',
   });
@@ -94,9 +95,7 @@ app.use((req, res) => {
 const PORT = config.port;
 
 app.listen(PORT, () => {
-  console.log(`Medical Diagnosis API server running on port ${PORT}`);
-  console.log(`Database type: ${config.database.type}`);
-  console.log(`Environment: ${config.nodeEnv}`);
+  logger.info({ port: PORT, db: config.database.type, env: config.nodeEnv }, 'Medical Diagnosis API server started');
 });
 
 export default app;

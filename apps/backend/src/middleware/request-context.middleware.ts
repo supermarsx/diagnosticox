@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
+import { logger } from '../services/logger.service';
 
 export interface RequestWithContext extends Request {
   requestId?: string;
@@ -23,7 +24,7 @@ export function requestContext(req: RequestWithContext, res: Response, next: Nex
       status: res.statusCode,
       duration_ms: duration,
     };
-    console.log(JSON.stringify(payload));
+    logger.info(payload, 'request-complete');
   });
 
   next();

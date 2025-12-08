@@ -29,6 +29,7 @@ import SecurityAuditLogs from './pages/SecurityAuditLogs';
 import EncryptionManagement from './pages/EncryptionManagement';
 import PrivacyControls from './pages/PrivacyControls';
 import AdminPanel from './pages/AdminPanel';
+import AdminSessionsPage from './pages/AdminSessionsPage';
 import ICDLookupPage from './pages/ICDLookupPage';
 import DSM5AssessmentsPage from './pages/DSM5AssessmentsPage';
 import SymptomCheckerPage from './pages/SymptomCheckerPage';
@@ -339,6 +340,16 @@ function App() {
           element={
             user ? (
               <AdminPanel user={user} />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+        <Route
+          path="/security/sessions"
+          element={
+            user ? (
+              <AdminSessionsPage />
             ) : (
               <Navigate to="/login" replace />
             )
