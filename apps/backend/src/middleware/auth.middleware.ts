@@ -1,6 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
 import { authService } from '../services/auth.service';
 
+/**
+ * AuthRequest augments the standard Express Request object with authenticated
+ * user context (extracted from a validated JWT) and an optional tenantId which
+ * is used to scope requests in a multi-tenant environment.
+ */
 export interface AuthRequest extends Request {
   user?: {
     userId: string;
@@ -10,6 +15,14 @@ export interface AuthRequest extends Request {
   tenantId?: string;
 }
 
+/**
+ * authenticate
+ *
+ * Middleware to read the Authorization header (Bearer token), verify the
+ * JWT using the AuthService, and populate `req.user` and `req.tenantId`.
+ * - Returns 401 when no token is present or the token is invalid.
+ * - Ensures the token contains an organizationId (tenant) claim.
+ */
 export function authenticate(req: AuthRequest, res: Response, next: NextFunction) {
   try {
     const authHeader = req.headers.authorization;
@@ -33,6 +46,13 @@ export function authenticate(req: AuthRequest, res: Response, next: NextFunction
   }
 }
 
+/**
+ * authorize(...roles)
+ *
+ * Higher-order middleware that restricts access to requests where the
+ * authenticated user's role is present in the allowed roles.
+ * If `roles` is omitted, the middleware only enforces authentication.
+ */
 export function authorize(...roles: string[]) {
   return (req: AuthRequest, res: Response, next: NextFunction) => {
     if (!req.user) {

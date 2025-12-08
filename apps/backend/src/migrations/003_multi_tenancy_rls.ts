@@ -1,6 +1,16 @@
 import { getDatabase } from '../config/database';
 import { config } from '../config';
 
+/**
+ * Migration: 003_multi_tenancy_rls
+ *
+ * Adds tenant-friendly indexes and attempts to create sample Row-Level
+ * Security (RLS) policies for PostgreSQL-compatible servers (Postgres,
+ * CockroachDB). The RLS policies in this migration are illustrative and rely
+ * on the application setting session variables (app.organization_id, app.role)
+ * prior to executing queries. In production, design and review policies with
+ * your DB admin — RLS semantics vary slightly between PG and CRDB.
+ */
 export async function up() {
   const db = getDatabase();
 
@@ -39,6 +49,10 @@ export async function up() {
   }
 }
 
+/**
+ * Revert migration: remove indexes and attempt to disable/drop the sample RLS
+ * policies created by the up() migration.
+ */
 export async function down() {
   const db = getDatabase();
   await db.execute('DROP INDEX IF EXISTS idx_patients_org_id');

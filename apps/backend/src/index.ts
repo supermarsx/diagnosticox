@@ -1,6 +1,15 @@
 // ensure Node uses UTC time for runtime operations
 process.env.TZ = process.env.TZ || 'UTC';
 
+/**
+ * Entry point for the backend API server. This file wires core middleware
+ * (helmet, cors, JSON parsers) and mounts the application routes. It also
+ * installs request-scoped context middleware used for correlation IDs and
+ * structured request logging.
+ *
+ * The server listens on the port declared in `config.port` and logs a few
+ * useful startup values for diagnostics (database type and Node environment).
+ */
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';

@@ -6,6 +6,19 @@ import { config } from '../config';
 import { User } from '../types';
 import { ensureOrganizationExists } from '../utils/tenancy';
 
+/**
+ * AuthService
+ *
+ * Small authentication helper for the prototype backend. Responsibilities:
+ *  - Bootstrap a first organization + admin user for fresh deployments
+ *  - Register/login users using email+password (bcrypt)
+ *  - Generate and verify JWT access tokens that include tenant (organization_id)
+ *    and role claims used by the app's RBAC/tenant middleware.
+ *
+ * WARNING: This is not a complete production identity system. It demonstrates
+ * typical auth flows for a monorepo prototype and should be replaced by a
+ * hardened identity provider (OIDC/Keycloak/Auth0) for production.
+ */
 export class AuthService {
   private db = getDatabase();
 

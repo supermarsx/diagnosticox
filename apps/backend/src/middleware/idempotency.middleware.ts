@@ -5,6 +5,26 @@ import { cacheService } from '../services/cache.service';
 const IDEMPOTENCY_HEADER = 'idempotency-key';
 const DEFAULT_TTL_SECONDS = 300; // 5 minutes cache
 
+/**
+ * idempotencyHandler
+ *
+ * Express middleware that supports HTTP idempotency via the `Idempotency-Key`
+ * request header. When a client sends a POST/PUT with an idempotency key, the
+ * first response is saved in the cache (Redis or memory fallback) and repeated
+ * requests using the same key will return the cached response instead of
+ * re-processing the operation.
+ *
+ * - The middleware is intentionally simple and caches the final status, headers
+ *   and body as JSON under `idem:{key}`.
+ * - TTL is configurable via DEFAULT_TTL_SECONDS in this module (defaults to 5min).
+ * - Failures to access the cache are intentionally non-blocking — the request
+ *   proceeds as normal if the cache layer fails.
+ *
+ * Note: For production-grade idempotency,the caching layer should store a
+ * canonical request fingerprint, lock processing while the first request is
+ * running, and store a structured response type. This middleware is a practical
+ * and safe starting point for prototyping idempotency behavior.
+ */
 export async function idempotencyHandler(req: Request, res: Response, next: NextFunction) {
   const key = (req.headers[IDEMPOTENCY_HEADER] as string | undefined)?.trim();
 

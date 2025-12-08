@@ -5,6 +5,17 @@ import { authService } from '../services/auth.service';
 
 const router = Router();
 
+/**
+ * Internal OIDC/PKCE endpoints
+ *
+ * These lightweight routes provide a self-contained PKCE-style flow used by
+ * the prototype app for developer/testing scenarios. They are NOT replacements
+ * for a secure production OpenID Connect provider. The endpoints:
+ *
+ *  - POST /pkce/start  -> accept client_id, redirect_uri, code_challenge and
+ *                         store the PKCE details in the cache for a short TTL
+ *  - POST /pkce/complete -> exchange code + code_verifier for an app JWT
+ */
 // Start PKCE flow (internal lightweight flow) - returns a temporary code
 router.post('/pkce/start', async (req, res) => {
   try {

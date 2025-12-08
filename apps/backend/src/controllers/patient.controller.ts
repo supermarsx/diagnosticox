@@ -9,6 +9,10 @@ export class PatientController {
   private db = getDatabase();
 
   async list(req: AuthRequest, res: Response) {
+    /**
+     * List patients for the requesting tenant (organization).
+     * Supports simple text search across first_name/last_name/mrn and pagination.
+     */
     try {
       const organizationId = req.tenantId || req.user!.organizationId;
       const { search, limit = '50', offset = '0' } = req.query;
@@ -34,6 +38,11 @@ export class PatientController {
   }
 
   async get(req: AuthRequest, res: Response) {
+    /**
+     * Retrieve a single patient by id. Response includes ETag header (for
+     * concurrency protection) and Cache-Control: no-store to prevent client
+     * caching of a sensitive resource.
+     */
     try {
       const { id } = req.params;
       const organizationId = req.tenantId || req.user!.organizationId;
@@ -56,6 +65,10 @@ export class PatientController {
   }
 
   async create(req: AuthRequest, res: Response) {
+    /**
+     * Create a new patient scoped to the caller's tenant. This method will
+     * set created/updated timestamps and write an audit log for traceability.
+     */
     try {
       const organizationId = req.tenantId || req.user!.organizationId;
       const {
@@ -123,6 +136,12 @@ export class PatientController {
   }
 
   async update(req: AuthRequest, res: Response) {
+    /**
+     * Update an existing patient. Clients must send an If-Match header with the
+     * current ETag value to protect against lost updates. The controller will
+     * reject modifications if the ETag does not match (HTTP 412) or the header
+     * is missing (HTTP 428).
+     */
     try {
       const { id } = req.params;
       const organizationId = req.tenantId || req.user!.organizationId;
@@ -210,6 +229,10 @@ export class PatientController {
   }
 
   async delete(req: AuthRequest, res: Response) {
+    /**
+     * Delete a patient record. The operation is scoped to the tenant and writes
+     * an audit log entry after successful deletion.
+     */
     try {
       const { id } = req.params;
       const organizationId = req.tenantId || req.user!.organizationId;

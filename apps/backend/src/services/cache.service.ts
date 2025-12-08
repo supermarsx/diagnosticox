@@ -3,6 +3,18 @@ import { config } from '../config';
 
 type CacheValue = string;
 
+/**
+ * CacheService provides a simple key/value cache abstraction with a Redis
+ * backend and an in-memory fallback when Redis isn't available. The service
+ * exposes async get/set/del operations and supports TTL (expiry) when
+ * Redis is connected or via a setTimeout when using the in-memory fallback.
+ *
+ * Usage:
+ *  import { cacheService } from './services/cache.service';
+ *  await cacheService.set('key', JSON.stringify(value), 60); // expires in 60s
+ *  const raw = await cacheService.get('key');
+ *
+ */
 class CacheService {
   private client: Redis | null = null;
   private fallback = new Map<string, CacheValue>();

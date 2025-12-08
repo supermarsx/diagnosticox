@@ -2,6 +2,17 @@ import { Router } from 'express';
 import { authService } from '../services/auth.service';
 import { idempotencyHandler } from '../middleware/idempotency.middleware';
 
+/**
+ * Authentication routes
+ *
+ * Contains convenience endpoints used by the application during development
+ * and initial bootstrap scenarios. Endpoints covered here:
+ *  - POST /register  -> register a user in an organization (idempotent keys supported)
+ *  - POST /bootstrap -> create the first org + admin user on a fresh deployment
+ *  - POST /login     -> exchange email+password for a JWT access token
+ *
+ * These endpoints use the AuthService for password hashing and JWT generation.
+ */
 const router = Router();
 
 router.post('/register', idempotencyHandler, async (req, res) => {
