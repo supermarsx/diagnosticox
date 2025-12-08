@@ -184,4 +184,42 @@ router.post('/token/revoke', async (req, res) => {
   }
 });
 
+/**
+ * List sessions for a user (admin or the same user). Query param: userId
+ * Returns an array of session objects + refresh token summary where available.
+ */
+router.get('/sessions', async (req, res) => {
+  try {
+    const userId = req.query.userId as string | undefined;
+    if (!userId) return res.status(400).json({ error: 'Missing userId query parameter' });
+
+    const authHeader = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+    if (!authHeader) return res.status(401).json({ error: 'Missing Authorization token' });
+
+    let claims: any;
+    try {
+      claims = authService.verifyToken(authHeader) as any;
+    } catch (err) {
+      return res.status(401).json({ error: 'Invalid token' });
+    }
+
+    // allow if caller is admin or caller user matches requested userId
+    if (claims.role !== 'admin' && claims.userId !== userId) {
+      return res.status(403).json({ error: 'Insufficient permissions' });
+    }
+
+    const rows = await refreshTokenService.findSessionsByUser(userId);
+    const sessions = [] as any[];
+    for (const r of rows) {
+      const sessionId = (r as any).session_id;
+      const session = await sessionService.getSession(sessionId);
+      sessions.push({ sessionId, session });
+    }
+
+    return res.json({ sessions });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message || 'Failed to list sessions' });
+  }
+});
+
 export default router;

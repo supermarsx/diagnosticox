@@ -32,6 +32,11 @@ describe('DB-backed integration', () => {
     const foundAfter = await refreshTokenService.findByToken(refreshToken);
     expect(foundAfter.revoked === 1 || foundAfter.revoked === true).toBeTruthy();
 
+    // audit should have a revoke row
+    const audit = await (await import('../config/database')).getDatabase().get('SELECT * FROM token_audit WHERE token = ? ORDER BY created_at DESC', [refreshToken]);
+    expect(audit).not.toBeNull();
+    expect(audit.event_type).toBe('revoke');
+
     // Create a patient
     const newPatient = {
       first_name: 'Alice',

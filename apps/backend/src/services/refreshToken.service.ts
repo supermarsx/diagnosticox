@@ -16,6 +16,12 @@ export class RefreshTokenService {
       [token, sessionId, userId || null, expiresAt, new Date().toISOString()]
     );
 
+    // audit
+    await this.db.execute(
+      'INSERT INTO token_audit (id, event_type, token, session_id, user_id, details, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [crypto.randomUUID(), 'create', token, sessionId, userId || null, JSON.stringify({ ttlSeconds }), new Date().toISOString()]
+    );
+
     return token;
   }
 
@@ -25,10 +31,20 @@ export class RefreshTokenService {
 
   async revoke(token: string) {
     await this.db.execute('UPDATE refresh_tokens SET revoked = 1 WHERE token = ?', [token]);
+    await this.db.execute('INSERT INTO token_audit (id, event_type, token, created_at) VALUES (?, ?, ?, ?)', [crypto.randomUUID(), 'revoke', token, new Date().toISOString()]);
   }
 
   async revokeBySession(sessionId: string) {
     await this.db.execute('UPDATE refresh_tokens SET revoked = 1 WHERE session_id = ?', [sessionId]);
+    await this.db.execute('INSERT INTO token_audit (id, event_type, session_id, created_at) VALUES (?, ?, ?, ?)', [crypto.randomUUID(), 'revoke_by_session', sessionId, new Date().toISOString()]);
+  }
+
+  async findSessionsByUser(userId: string) {
+    // Return distinct session ids for the user where token not revoked and not expired
+    return this.db.query(
+      `SELECT DISTINCT session_id FROM refresh_tokens WHERE user_id = ? AND (revoked = 0 OR revoked IS NULL)`,
+      [userId]
+    );
   }
 
   async rotate(oldToken: string, newSessionId: string) {
@@ -42,6 +58,7 @@ export class RefreshTokenService {
       'INSERT INTO refresh_tokens (token, session_id, user_id, expires_at, revoked, created_at) VALUES (?, ?, ?, ?, 0, ?)',
       [newToken, newSessionId, existing.user_id || null, expiresAt, new Date().toISOString()]
     );
+    await this.db.execute('INSERT INTO token_audit (id, event_type, token, session_id, user_id, created_at) VALUES (?, ?, ?, ?, ?, ?)', [crypto.randomUUID(), 'rotate', newToken, newSessionId, existing.user_id || null, new Date().toISOString()]);
     return newToken;
   }
 }
