@@ -21,7 +21,7 @@
 **Problem:** In-memory database with no persistence
 **Solution:**
 - Implemented `sql.js` for proper SQLite support with file persistence
-- Database file: `/workspace/backend/data/medical_diagnosis.db`
+- Database file: `/workspace/backend/research/medical_diagnosis.db`
 - Automatic save after every write operation
 - Full CRUD operations working
 
@@ -83,7 +83,7 @@ Password: demo123
 
 ### Database Configuration
 - Type: SQLite (via sql.js)
-- Path: ./data/medical_diagnosis.db
+- Path: ./research/medical_diagnosis.db
 - Auto-persistence on every write
 - Lazy initialization on first query
 
@@ -137,7 +137,7 @@ curl -X POST http://localhost:3001/api/auth/login \
   -d '{"email":"dr.smith@clinic.com","password":"demo123"}'
 
 # View database file
-ls -lh /workspace/backend/data/medical_diagnosis.db
+ls -lh /workspace/backend/research/medical_diagnosis.db
 ```
 
 ## Summary
