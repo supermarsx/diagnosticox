@@ -36,6 +36,7 @@
 - Import (CSV): `POST /api/import/facts` with `text/csv` body (headers: patient_id,problem_id,fact_type,measurement_name,measurement_value,measurement_unit,value_text,measured_at,source); org/patient scoped and audited.
 - Templates: sample CSV at `research/import-templates/facts-template.csv`.
 - Reporting: `GET /api/reports/outcomes?cohort=...` returns org-scoped counts (patients, problems, trials, observations).
+- ICD local search (after running fetch scripts): `GET /api/icd/search?q=...&version=icd10|icd11` and `GET /api/icd/:version/:code`. Populate indexes via `scripts/fetch-icd10.sh` and `scripts/fetch-icd.sh` (ICD-11).
 
 ## Environment
 - JWT secret: `JWT_SECRET`

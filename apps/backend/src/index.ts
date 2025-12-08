@@ -17,6 +17,7 @@ import exportRoutes from './routes/export.routes';
 import fhirRoutes from './routes/fhir.routes';
 import importRoutes from './routes/import.routes';
 import reportRoutes from './routes/report.routes';
+import icdRoutes from './routes/icd.routes';
 import { v4 as uuidv4 } from 'uuid';
 
 const app = express();
@@ -71,6 +72,7 @@ app.use('/api/export', exportRoutes);
 app.use('/api/fhir', fhirRoutes);
 app.use('/api/import', importRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/icd', icdRoutes);
 app.use('/api/security', securityRoutes);
 
 // Error handling

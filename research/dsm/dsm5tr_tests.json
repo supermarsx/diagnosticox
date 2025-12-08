@@ -1,0 +1,1 @@
+{"version":"DSM-5-TR","instruments":[{"id":"phq9","name":"PHQ-9","domain":"Depression"},{"id":"gad7","name":"GAD-7","domain":"Anxiety"},{"id":"phq15","name":"PHQ-15","domain":"Somatic"},{"id":"pcl5","name":"PCL-5","domain":"PTSD"},{"id":"audit","name":"AUDIT","domain":"Alcohol Use"},{"id":"mmpi3","name":"MMPI-3","domain":"Personality"}]}

@@ -311,5 +311,18 @@ export const icdService = new ICDService({
   language: 'en',
 });
 
+// Local ICD index search (populated via scripts/fetch-icd10.sh and scripts/fetch-icd.sh)
+export async function searchLocalICD(version: 'icd10' | 'icd11', q: string) {
+  const res = await fetch(`/api/icd/search?q=${encodeURIComponent(q)}&version=${version}`);
+  if (!res.ok) throw new Error('Local ICD search failed');
+  return res.json();
+}
+
+export async function getLocalICD(version: 'icd10' | 'icd11', code: string) {
+  const res = await fetch(`/api/icd/${version}/${encodeURIComponent(code)}`);
+  if (!res.ok) throw new Error('Local ICD detail failed');
+  return res.json();
+}
+
 export type { ICDConcept, ICDSearchResult, ICD10CMCode };
 export default ICDService;

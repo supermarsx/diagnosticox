@@ -9,7 +9,7 @@
 
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { icdService, ICDSearchResult, ICDConcept } from '../services/icdService';
+import { icdService, ICDSearchResult, ICDConcept, searchLocalICD, getLocalICD } from '../services/icdService';
 import { Search, BookOpen, ArrowRight, AlertCircle, Stethoscope, Activity } from 'lucide-react';
 import { searchICD10Local, getICD10Local } from '../lib/icd10Local';
 
@@ -57,24 +57,34 @@ export const ICDLookupPage: React.FC = () => {
 
     try {
       if (search.version === 'icd11') {
-        const results = await icdService.searchICD11(search.query, {
-          flatResults: true,
-          useFlexisearch: true,
-        });
+        // Use local index if populated, otherwise fallback to WHO API
+        const local = await searchLocalICD('icd11', search.query);
+        const results = local.results?.length
+          ? local.results
+          : (await icdService.searchICD11(search.query, { flatResults: true, useFlexisearch: true })).destinationEntities;
         setSearch(prev => ({
           ...prev,
-          results: results.destinationEntities,
+          results,
           loading: false,
         }));
       } else {
-        const results = searchICD10Local(search.query).map((entry) => ({
-          id: entry.code,
-          title: entry.title,
-          theCode: entry.code,
-          chapter: entry.chapter,
-          score: 1,
-          titleIsASearchResult: true,
-          titleIsTopScore: true,
+        // Prefer local ICD-10 index if available
+        const local = await searchLocalICD('icd10', search.query);
+        const baseResults =
+          local.results?.length > 0
+            ? local.results
+            : searchICD10Local(search.query).map((entry) => ({
+                id: entry.code,
+                title: entry.title,
+                theCode: entry.code,
+                chapter: entry.chapter,
+                score: 1,
+                titleIsASearchResult: true,
+                titleIsTopScore: true,
+              }));
+        const results = baseResults.map((r: any) => ({
+          ...r,
+          theCode: r.theCode || r.code || r.id,
         }));
         setSearch(prev => ({
           ...prev,
@@ -100,10 +110,35 @@ export const ICDLookupPage: React.FC = () => {
 
     try {
       if (search.version === 'icd11') {
-        const concept = await icdService.getICD11Concept(entityId);
+        let concept: ICDConcept | null = null;
+        try {
+          const local = await getLocalICD('icd11', entityId);
+          concept = {
+            '@id': local.entry?.id || entityId,
+            '@context': '',
+            title: { '@language': 'en', '@value': local.entry?.title || '' },
+            fullySpecifiedName: { '@language': 'en', '@value': local.entry?.title || '' },
+          } as ICDConcept;
+        } catch {
+          concept = await icdService.getICD11Concept(entityId);
+        }
         setConceptDetail({ concept, icd10Detail: undefined, loading: false, error: null });
       } else {
-        const detail = getICD10Local(entityId) || undefined;
+        let detail = getICD10Local(entityId) || undefined;
+        if (!detail) {
+          try {
+            const local = await getLocalICD('icd10', entityId);
+            detail = {
+              code: local.entry?.code || entityId,
+              title: local.entry?.title || '',
+              chapter: local.entry?.chapter,
+              synonyms: [],
+              commonSymptoms: [],
+            };
+          } catch {
+            // ignore
+          }
+        }
         setConceptDetail({ concept: null, icd10Detail: detail, loading: false, error: null });
       }
     } catch (error) {
