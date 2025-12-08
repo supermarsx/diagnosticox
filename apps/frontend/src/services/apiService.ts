@@ -187,6 +187,31 @@ class ApiService {
     }
   }
 
+  // PKCE client helpers (internal demo flow)
+  async pkceStart(clientId: string, redirectUri: string, codeChallenge: string, state?: string) {
+    const data = await this.request<{ code: string; redirect_uri: string; state?: string }>(`/auth/oidc/pkce/start`, {
+      method: 'POST',
+      body: JSON.stringify({ client_id: clientId, redirect_uri: redirectUri, code_challenge: codeChallenge, state }),
+    });
+    return data;
+  }
+
+  async pkceComplete(code: string, codeVerifier: string, username?: string) {
+    const data = await this.request<{ token?: string; sessionId?: string; refreshToken?: string }>(`/auth/oidc/pkce/complete`, {
+      method: 'POST',
+      body: JSON.stringify({ code, code_verifier: codeVerifier, username }),
+    });
+
+    if ((data as any).token) {
+      this.setToken((data as any).token);
+    }
+    if ((data as any).refreshToken) {
+      this.setRefreshToken((data as any).refreshToken);
+    }
+
+    return data;
+  }
+
   async register(email: string, password: string, fullName: string, organizationId: string) {
     const data = await this.request<{ user: any; token: string }>('/auth/register', {
       method: 'POST',

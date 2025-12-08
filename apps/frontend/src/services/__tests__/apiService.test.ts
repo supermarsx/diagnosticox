@@ -53,4 +53,22 @@ describe('apiService refresh flow', () => {
     expect(localStorage.getItem('auth_token')).toBeNull();
     expect(localStorage.getItem('refresh_token')).toBeNull();
   });
+
+  it('pkce start and complete exchange stores token + refreshToken', async () => {
+    // mock pkce start response
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ code: 'pkce-code-123', redirect_uri: 'https://cb' }) })
+      // mock pkce complete response
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ token: 'pkce-token', refreshToken: 'pkce-refresh', sessionId: 's1' }) });
+
+    // start
+    const start = await (apiService as any).pkceStart('frontend', 'https://app.test', 'challenge');
+    expect(start).toHaveProperty('code', 'pkce-code-123');
+
+    // complete
+    const complete = await (apiService as any).pkceComplete('pkce-code-123', 'verifier', 'dev-user');
+    expect((apiService as any).token).toBe('pkce-token');
+    expect((apiService as any).refreshToken).toBe('pkce-refresh');
+    expect(complete).toHaveProperty('sessionId', 's1');
+  });
 });

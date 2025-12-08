@@ -40,6 +40,24 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
     }
   };
 
+  const handlePkce = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      // Use the provided email as the demo username for PKCE flow
+      const res = await auth.pkceLogin ? await auth.pkceLogin(email) : null;
+      if (res && (res as any).token) {
+        if (onLogin) onLogin({ id: email }, (res as any).token);
+      } else {
+        setError('PKCE login failed');
+      }
+    } catch (err: any) {
+      setError(err.message || 'PKCE login failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center p-4 relative overflow-hidden">
       {/* Animated Background Elements */}
@@ -134,6 +152,17 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
               </>
             )}
           </button>
+
+          <div className="mt-3 flex items-center justify-center">
+            <button
+              type="button"
+              className="w-1/2 glass-button-secondary py-2 font-semibold text-gray-700"
+              disabled={loading}
+              onClick={handlePkce}
+            >
+              PKCE Demo Sign In
+            </button>
+          </div>
         </form>
 
         {/* Demo Credentials Card */}
