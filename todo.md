@@ -4,7 +4,7 @@ Comprehensive build plan derived from `spec.md`. Organize into phases; mark item
 
 ## Foundations
 - [x] Repo setup: confirm pnpm workspace wiring for frontend/backend/mobile; add base env samples with required keys noted.
-- [ ] Backend skeleton (Fastify/Nest): project scaffolding, lint/test config, shared types package; enable UTC timestamps.
+- [x] Backend skeleton (Fastify/Nest): project scaffolding, lint/test config, shared types package; enable UTC timestamps.
 - [x] Auth/OIDC: PKCE flow, JWT validation with org_id + roles claims; session cache (Redis); idempotency key middleware. (Implemented + tests)
 - [ ] Multi-tenancy & RLS: CockroachDB schema with org_id + patient_id composites; per-role policies; seed org/admin user.
 - [ ] Core entities: organizations, users, patients, problems, facts tables with validation; migrations + Prisma/TypeORM models.

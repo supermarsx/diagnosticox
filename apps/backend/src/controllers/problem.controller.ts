@@ -1,4 +1,5 @@
 import { Response } from 'express';
+import type { ProblemBase } from '@diagnosticox/shared-types';
 import { v4 as uuidv4 } from 'uuid';
 import { getDatabase } from '../config/database';
 import { AuthRequest } from '../middleware/auth.middleware';
@@ -16,12 +17,13 @@ export class ProblemController {
 
       await ensurePatientAccessible(patientId, organizationId);
 
-      const problems = await this.db.query(
+      const problems = (await this.db.query(
         `SELECT * FROM problems 
          WHERE patient_id = ? AND organization_id = ? 
          ORDER BY priority DESC, created_at DESC`,
         [patientId, organizationId]
       );
+      ) as ProblemBase[];
 
       res.json(problems);
     } catch (error: any) {
@@ -34,10 +36,11 @@ export class ProblemController {
       const { id } = req.params;
       const organizationId = req.tenantId || req.user!.organizationId;
 
-      const problem = await this.db.get(
+      const problem = (await this.db.get(
         'SELECT * FROM problems WHERE id = ? AND organization_id = ?',
         [id, organizationId]
       );
+      ) as ProblemBase | undefined;
 
       if (!problem) {
         return res.status(404).json({ error: 'Problem not found' });
@@ -51,7 +54,7 @@ export class ProblemController {
         [id]
       );
 
-      const payload = { ...problem, hypotheses };
+      const payload = { ...(problem as ProblemBase), hypotheses };
       res.setHeader('ETag', generateEtag(problem));
       res.setHeader('Cache-Control', 'no-store');
       res.json(payload);

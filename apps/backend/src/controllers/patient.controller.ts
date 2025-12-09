@@ -1,4 +1,5 @@
 import { Response } from 'express';
+import type { PatientSummary } from '@diagnosticox/shared-types';
 import { v4 as uuidv4 } from 'uuid';
 import { getDatabase } from '../config/database';
 import { AuthRequest } from '../middleware/auth.middleware';
@@ -35,7 +36,7 @@ export class PatientController {
       params.unshift(organizationId);
       params.push(parseInt(limit as string), parseInt(offset as string));
 
-      const patients = await this.db.query(query, params);
+      const patients = (await this.db.query(query, params)) as PatientSummary[];
 
       res.json({ patients, total: patients.length });
     } catch (error: any) {
@@ -77,7 +78,7 @@ export class PatientController {
 
       const params = [organizationId, organizationId, organizationId, organizationId, organizationId, parseInt(limit as string), parseInt(offset as string)];
 
-      const rows = await this.db.query(query, params);
+      const rows = (await this.db.query(query, params)) as PatientSummary[];
       res.json({ patients: rows, total: rows.length });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
