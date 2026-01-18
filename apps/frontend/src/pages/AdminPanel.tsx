@@ -33,17 +33,19 @@ const AdminPanel = ({ user }: AdminPanelProps) => {
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [users, setUsers] = useState<User[]>([]);
   const [securityPolicies, setSecurityPolicies] = useState<any[]>([]);
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch users and security policies
+  // Fetch users, security policies and audit logs
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [usersData, policiesData] = await Promise.all([
+        const [usersData, policiesData, logsData] = await Promise.all([
           securityAPI.getUsers(),
-          securityAPI.getSecurityPolicies()
+          securityAPI.getSecurityPolicies(),
+          securityAPI.getAuditLogs()
         ]);
         
         // Map users data
@@ -62,6 +64,7 @@ const AdminPanel = ({ user }: AdminPanelProps) => {
         
         setUsers(mappedUsers);
         setSecurityPolicies(policiesData || []);
+        setAuditLogs(logsData || []);
         setError(null);
       } catch (err: any) {
         console.error('Error fetching admin data:', err);
@@ -507,50 +510,36 @@ const AdminPanel = ({ user }: AdminPanelProps) => {
           <div className="glass-card-strong p-6">
             <h2 className="text-xl font-bold text-gray-900 mb-4">Recent Activity</h2>
             <div className="space-y-3">
-              <div className="glass-card p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">
-                      <strong>john.smith@hospital.com</strong> updated security policy
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">2 hours ago • IP: 192.168.1.100</p>
-                  </div>
-                  <CheckCircle className="w-5 h-5 text-green-600" />
+              {auditLogs.length === 0 ? (
+                <div className="p-12 text-center text-gray-500 italic">
+                  No activity logs found.
                 </div>
-              </div>
-              <div className="glass-card p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">
-                      New user <strong>david.brown@hospital.com</strong> created
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">5 hours ago • By: admin@hospital.com</p>
+              ) : (
+                auditLogs.map((log) => (
+                  <div key={log.id} className="glass-card p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">
+                          <strong>{log.user_id || 'System'}</strong> performed <strong>{log.action}</strong> on <strong>{log.table_name}</strong>
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {new Date(log.timestamp || log.created_at).toLocaleString()} • IP: {log.ip_address || 'N/A'}
+                        </p>
+                        {log.changes && (
+                          <div className="mt-2 p-2 bg-gray-50 rounded text-[10px] font-mono text-gray-600">
+                            {typeof log.changes === 'string' ? log.changes : JSON.stringify(log.changes)}
+                          </div>
+                        )}
+                      </div>
+                      {log.severity === 'critical' ? (
+                        <AlertTriangle className="w-5 h-5 text-red-600" />
+                      ) : (
+                        <CheckCircle className="w-5 h-5 text-green-600" />
+                      )}
+                    </div>
                   </div>
-                  <CheckCircle className="w-5 h-5 text-green-600" />
-                </div>
-              </div>
-              <div className="glass-card p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">
-                      Account <strong>lisa.anderson@hospital.com</strong> locked due to failed login attempts
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">1 day ago • Automatic action</p>
-                  </div>
-                  <AlertTriangle className="w-5 h-5 text-yellow-600" />
-                </div>
-              </div>
-              <div className="glass-card p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">
-                      Database backup completed successfully
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">1 day ago • Automatic backup</p>
-                  </div>
-                  <CheckCircle className="w-5 h-5 text-green-600" />
-                </div>
-              </div>
+                ))
+              )}
             </div>
           </div>
         )}

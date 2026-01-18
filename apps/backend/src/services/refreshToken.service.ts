@@ -53,20 +53,6 @@ export class RefreshTokenService {
 
       return token;
     }
-    const expiresAt = new Date(Date.now() + ttlSeconds * 1000).toISOString();
-
-    await this.db.execute(
-      `INSERT INTO refresh_tokens (token, session_id, user_id, expires_at, revoked, created_at) VALUES (?, ?, ?, ?, 0, ?)`,
-      [token, sessionId, userId || null, expiresAt, new Date().toISOString()]
-    );
-
-    // audit
-    await this.db.execute(
-      'INSERT INTO token_audit (id, event_type, token, session_id, user_id, details, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [crypto.randomUUID(), 'create', token, sessionId, userId || null, JSON.stringify({ ttlSeconds }), new Date().toISOString()]
-    );
-
-    return token;
   }
 
   async findByToken(token: string) {

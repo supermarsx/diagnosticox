@@ -1,6 +1,8 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { bayesianService } from '../services/bayesian.service';
+import { getDatabase } from '../config/database';
+import { writeAuditLog } from '../utils/audit';
 
 export class BayesianController {
   async calculate(req: AuthRequest, res: Response) {
@@ -96,6 +98,50 @@ export class BayesianController {
       res.json(result);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
+    }
+  }
+
+  async batchUpdateHypotheses(req: AuthRequest, res: Response) {
+    try {
+      const { problemId } = req.params;
+      const { calculations } = req.body; // Array of { hypothesis_id, current_probability, clinical_reasoning }
+      const organizationId = req.tenantId || req.user!.organizationId;
+      const db = getDatabase();
+
+      if (!Array.isArray(calculations)) {
+        return res.status(400).json({ error: 'calculations must be an array' });
+      }
+
+      for (const calc of calculations) {
+        await db.execute(
+          `UPDATE hypotheses 
+           SET current_probability = ?, clinical_reasoning = COALESCE(?, clinical_reasoning), updated_at = ?
+           WHERE id = ? AND problem_id = ? AND organization_id = ?`,
+          [
+            calc.current_probability,
+            calc.clinical_reasoning || null,
+            new Date().toISOString(),
+            calc.hypothesis_id,
+            problemId,
+            organizationId,
+          ]
+        );
+      }
+
+      await writeAuditLog({
+        organizationId,
+        userId: req.user?.userId,
+        table: 'hypotheses',
+        action: 'batch_update',
+        recordId: problemId,
+        changes: { updated_count: calculations.length },
+        ip: req.ip,
+        userAgent: req.get('user-agent') || undefined,
+      });
+
+      res.json({ success: true, updated: calculations.length });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
     }
   }
 }

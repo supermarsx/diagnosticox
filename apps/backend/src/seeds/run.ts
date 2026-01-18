@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { getDatabase } from '../config/database';
 import { seedSecurityData } from './002_security_data';
+import { seedPivotLibrary } from './003_pivot_library';
 import logger from '../services/logger.service';
 
 // For demo: use a pre-computed bcryptjs hash of 'demo123'
@@ -348,6 +349,7 @@ async function run() {
   try {
     await seed();
     await seedSecurityData(getDatabase());
+    await seedPivotLibrary(getDatabase());
     logger.info('Database seeded successfully');
     process.exit(0);
   } catch (error) {

@@ -6,6 +6,7 @@ const router = Router();
 
 router.use(authenticate, enforceTenant);
 
-router.get('/patient/:patientId', authorize('admin', 'clinician', 'resident'), exportController.patientBundle.bind(exportController));
+router.get('/patient/:patientId', exportController.patientBundle.bind(exportController));
+router.post('/patient/:patientId/deidentified', exportController.deidentifiedExport.bind(exportController));
 
 export default router;

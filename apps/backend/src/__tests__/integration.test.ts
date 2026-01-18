@@ -5,6 +5,7 @@
  * database or external services (Redis fallback is used when Redis isn't
  * reachable).
  */
+import { describe, test, expect } from 'vitest';
 import request from 'supertest';
 import app from '../index';
 

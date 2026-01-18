@@ -4,6 +4,7 @@
  * integration job brings up Postgres using docker-compose and test:ci runs
  * migrations before executing tests.
  */
+import { describe, test, expect } from 'vitest';
 import request from 'supertest';
 import app from '../index';
 import { refreshTokenService } from '../services/refreshToken.service';

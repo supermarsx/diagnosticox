@@ -78,6 +78,69 @@ export class ExportController {
       res.status(500).json({ error: error.message });
     }
   }
+
+  async deidentifiedExport(req: AuthRequest, res: Response) {
+    /**
+     * One-click de-identified packet with configurable redaction.
+     */
+    try {
+      const { patientId } = req.params;
+      const organizationId = req.tenantId || req.user!.organizationId;
+      const { redact_mrn = 'true', redact_contact = 'true', redact_names = 'true' } = req.body;
+
+      await ensurePatientAccessible(patientId, organizationId);
+
+      const patient = await this.db.get(
+        'SELECT * FROM patients WHERE id = ? AND organization_id = ?',
+        [patientId, organizationId]
+      );
+      if (!patient) return res.status(404).json({ error: 'Patient not found' });
+
+      // De-identify patient record
+      const deidentifiedPatient = { ...patient };
+      if (redact_mrn === 'true') deidentifiedPatient.mrn = 'REDACTED';
+      if (redact_contact === 'true') {
+        deidentifiedPatient.contact_phone = 'REDACTED';
+        deidentifiedPatient.contact_email = 'REDACTED';
+        deidentifiedPatient.emergency_contact = '{}';
+      }
+      if (redact_names === 'true') {
+        deidentifiedPatient.first_name = 'PARTICIPANT';
+        deidentifiedPatient.last_name = patientId.substring(0, 8);
+      }
+
+      const problems = await this.db.query(
+        'SELECT id, problem_name, problem_type, onset_date, status, clinical_context FROM problems WHERE patient_id = ? AND organization_id = ?',
+        [patientId, organizationId]
+      );
+      
+      const facts = await this.db.query(
+        'SELECT id, fact_type, measurement_name, measurement_value, measurement_unit, value_text, measured_at, source FROM facts WHERE patient_id = ? AND organization_id = ?',
+        [patientId, organizationId]
+      );
+
+      const trials = await this.db.query(
+        'SELECT id, trial_name, intervention, start_date, status, decision_outcome, clinical_notes FROM treatment_trials WHERE patient_id = ? AND organization_id = ?',
+        [patientId, organizationId]
+      );
+
+      const packet = {
+        export_date: new Date().toISOString(),
+        organization_context: organizationId,
+        patient: deidentifiedPatient,
+        problems,
+        facts,
+        trials,
+        disclaimer: 'This data has been de-identified for research/export purposes.'
+      };
+
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Content-Disposition', `attachment; filename="deidentified_${patientId}.json"`);
+      res.json(packet);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  }
 }
 
 export const exportController = new ExportController();

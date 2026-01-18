@@ -40,6 +40,7 @@ import VindicatemDiagnosisPage from './pages/VindicatemDiagnosisPage';
 import FHIRInteroperabilityPage from './pages/FHIRInteroperabilityPage';
 import AdaptiveManagementPage from './pages/AdaptiveManagementPage';
 import CacheMetricsDashboard from './pages/CacheMetricsDashboard';
+import ConstellationPage from './pages/ConstellationPage';
 import { apiService } from './services/apiService';
 
 function App() {
@@ -260,6 +261,16 @@ function App() {
           element={
             user ? (
               <CameraIntegration user={user} />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+        <Route
+          path="/constellation/:patientId"
+          element={
+            user ? (
+              <ConstellationPage />
             ) : (
               <Navigate to="/login" replace />
             )

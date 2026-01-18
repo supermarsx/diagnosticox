@@ -10,5 +10,6 @@ router.post('/calculate', bayesianController.calculate.bind(bayesianController))
 router.post('/calculate-both', bayesianController.calculateBoth.bind(bayesianController));
 router.post('/from-sens-spec', bayesianController.calculateFromSensSpec.bind(bayesianController));
 router.post('/recommend-tier', bayesianController.recommendTier.bind(bayesianController));
+router.post('/batch-update/:problemId', bayesianController.batchUpdateHypotheses.bind(bayesianController));
 
 export default router;

@@ -1,30 +1,19 @@
 import { Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
+import { Readable } from 'stream';
+import csv from 'csv-parser';
+import ExcelJS from 'exceljs';
 import { getDatabase } from '../config/database';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { ensurePatientAccessible } from '../utils/tenancy';
 import { writeAuditLog } from '../utils/audit';
 
-function parseCsv(body: string): Array<Record<string, string>> {
-  const lines = body.trim().split(/\r?\n/);
-  if (lines.length < 2) return [];
-  const headers = lines[0].split(',').map((h) => h.trim());
-  return lines.slice(1).map((line) => {
-    const cells = line.split(',').map((c) => c.trim());
-    const row: Record<string, string> = {};
-    headers.forEach((h, idx) => {
-      row[h] = cells[idx] || '';
-    });
-    return row;
-  });
-}
-
 export class ImportController {
   private db = getDatabase();
 
   /**
-   * Import facts from CSV with headers:
-   * patient_id,problem_id,fact_type,measurement_name,measurement_value,measurement_unit,value_text,measured_at,source
+   * Import facts from CSV or Excel.
+   * Required columns: patient_id, fact_type, measurement_name, measured_at
    */
   async importFacts(req: AuthRequest, res: Response) {
     try {
@@ -32,64 +21,135 @@ export class ImportController {
       const { userId } = req.user!;
       const contentType = req.headers['content-type'] || '';
 
-      if (!contentType.includes('text/csv')) {
-        return res.status(400).json({ error: 'Content-Type text/csv required' });
+      let rows: any[] = [];
+
+      if (contentType.includes('text/csv')) {
+        rows = await this.parseCsv(req.body);
+      } else if (contentType.includes('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')) {
+        rows = await this.parseExcel(req.body);
+      } else {
+        return res.status(400).json({ error: 'Unsupported Content-Type. Use text/csv or .xlsx' });
       }
 
-      const rows = parseCsv(req.body as string);
       if (!rows.length) {
-        return res.status(400).json({ error: 'No rows parsed' });
+        return res.status(400).json({ error: 'No data found in import' });
       }
 
+      const errors: string[] = [];
       const inserted: string[] = [];
-      for (const row of rows) {
-        const patientId = row.patient_id;
-        if (!patientId) continue;
-        await ensurePatientAccessible(patientId, organizationId);
 
-        const id = uuidv4();
-        const now = new Date().toISOString();
-        await this.db.execute(
-          `INSERT INTO facts (
-            id, patient_id, organization_id, problem_id, fact_type,
-            measurement_name, measurement_value, measurement_unit, value_text,
-            measured_at, source, recorded_by, context, created_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
-            id,
-            patientId,
-            organizationId,
-            row.problem_id || null,
-            row.fact_type || 'history',
-            row.measurement_name || 'Observation',
-            row.measurement_value ? Number(row.measurement_value) : null,
-            row.measurement_unit || null,
-            row.value_text || null,
-            row.measured_at || now,
-            row.source || 'import',
-            userId,
-            JSON.stringify({}),
-            now,
-          ]
-        );
-        inserted.push(id);
+      // Start transaction or batch (if supported)
+      // For this prototype we'll do sequential with error collection
+      for (const [index, row] of rows.entries()) {
+        try {
+          const { 
+            patient_id, 
+            fact_type, 
+            measurement_name, 
+            measured_at,
+            measurement_value,
+            measurement_unit,
+            value_text,
+            problem_id,
+            source 
+          } = row;
+
+          if (!patient_id || !fact_type || !measurement_name || !measured_at) {
+            errors.push(`Row ${index + 1}: Missing required fields`);
+            continue;
+          }
+
+          await ensurePatientAccessible(patient_id, organizationId);
+
+          const id = uuidv4();
+          await this.db.execute(
+            `INSERT INTO facts (
+              id, patient_id, organization_id, problem_id, fact_type,
+              measurement_name, measurement_value, measurement_unit, value_text,
+              measured_at, source, recorded_by, context, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              id,
+              patient_id,
+              organizationId,
+              problem_id || null,
+              fact_type,
+              measurement_name,
+              measurement_value ? Number(measurement_value) : null,
+              measurement_unit || null,
+              value_text || null,
+              measured_at,
+              source || 'import',
+              userId,
+              JSON.stringify({}),
+              new Date().toISOString(),
+            ]
+          );
+          inserted.push(id);
+        } catch (err: any) {
+          errors.push(`Row ${index + 1}: ${err.message}`);
+        }
       }
 
       await writeAuditLog({
         organizationId,
         userId,
         table: 'facts',
-        action: 'create',
-        recordId: inserted[0],
-        changes: { imported: inserted.length },
+        action: 'import',
+        recordId: inserted[0] || 'bulk',
+        changes: { inserted: inserted.length, errors: errors.length },
         ip: req.ip,
         userAgent: req.get('user-agent') || undefined,
       });
 
-      res.status(201).json({ inserted: inserted.length });
+      if (errors.length > 0 && inserted.length === 0) {
+        return res.status(400).json({ error: 'Import failed', details: errors });
+      }
+
+      res.status(201).json({ 
+        message: 'Import completed',
+        inserted: inserted.length, 
+        errors: errors.length > 0 ? errors : undefined 
+      });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
+  }
+
+  private parseCsv(body: any): Promise<any[]> {
+    return new Promise((resolve, reject) => {
+      const results: any[] = [];
+      const stream = typeof body === 'string' ? Readable.from(body) : Readable.from(body.toString());
+      
+      stream
+        .pipe(csv())
+        .on('data', (data) => results.push(data))
+        .on('end', () => resolve(results))
+        .on('error', (err) => reject(err));
+    });
+  }
+
+  private async parseExcel(body: Buffer): Promise<any[]> {
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(body);
+    const worksheet = workbook.worksheets[0];
+    const results: any[] = [];
+    
+    const headers: string[] = [];
+    worksheet.getRow(1).eachCell((cell, colNumber) => {
+      headers[colNumber] = cell.value?.toString() || `col${colNumber}`;
+    });
+
+    worksheet.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) return; // skip header
+      const data: any = {};
+      row.eachCell((cell, colNumber) => {
+        data[headers[colNumber]] = cell.value;
+      });
+      results.push(data);
+    });
+
+    return results;
   }
 }
 

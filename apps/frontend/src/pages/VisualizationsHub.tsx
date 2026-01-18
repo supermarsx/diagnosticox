@@ -189,6 +189,27 @@ export default function VisualizationsHub({ user }: VisualizationsHubProps) {
           <h2 className="text-xl font-bold text-gray-900 mb-6">Visualization Tools</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             
+            {/* 3D Constellation View */}
+            <Link
+              to="/constellation/demo"
+              className="glass-card p-6 hover-lift cursor-pointer transition-all group block"
+            >
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-cyan-500 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                <Sparkles className="h-8 w-8 text-white" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Diagnostic Constellation</h3>
+              <p className="text-sm text-gray-600 mb-4">3D force-directed graph connecting diagnoses, symptoms, and tests</p>
+              <div className="flex flex-wrap gap-2">
+                <span className="px-3 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700">3D Graph</span>
+                <span className="px-3 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700">Relationship Mapping</span>
+                <span className="px-3 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700">Orbit Layout</span>
+              </div>
+              <div className="mt-4 flex items-center text-indigo-600 text-sm font-medium group-hover:translate-x-2 transition-transform">
+                Open Tool
+                <ArrowLeft className="h-4 w-4 ml-2 rotate-180" />
+              </div>
+            </Link>
+
             {/* Medical Timeline */}
             <Link
               to="/visualizations/timeline"

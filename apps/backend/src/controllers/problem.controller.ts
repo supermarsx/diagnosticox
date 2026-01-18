@@ -22,8 +22,7 @@ export class ProblemController {
          WHERE patient_id = ? AND organization_id = ? 
          ORDER BY priority DESC, created_at DESC`,
         [patientId, organizationId]
-      );
-      ) as ProblemBase[];
+      )) as ProblemBase[];
 
       res.json(problems);
     } catch (error: any) {
@@ -39,8 +38,7 @@ export class ProblemController {
       const problem = (await this.db.get(
         'SELECT * FROM problems WHERE id = ? AND organization_id = ?',
         [id, organizationId]
-      );
-      ) as ProblemBase | undefined;
+      )) as ProblemBase | undefined;
 
       if (!problem) {
         return res.status(404).json({ error: 'Problem not found' });
@@ -200,6 +198,39 @@ export class ProblemController {
       res.setHeader('ETag', generateEtag(problem));
       res.setHeader('Cache-Control', 'no-store');
       res.json(problem);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  async validateClosure(req: AuthRequest, res: Response) {
+    /**
+     * Enforce two-domain evidence check before closing a problem.
+     * Checks if there are facts from at least 2 different domains/types.
+     */
+    try {
+      const { id } = req.params;
+      const organizationId = req.tenantId || req.user!.organizationId;
+
+      // Count distinct fact types for this problem
+      const result = await this.db.get(
+        `SELECT COUNT(DISTINCT fact_type) as domain_count 
+         FROM facts 
+         WHERE problem_id = ? AND organization_id = ?`,
+        [id, organizationId]
+      );
+
+      const domainCount = result?.domain_count || 0;
+      const canClose = domainCount >= 2;
+
+      res.json({
+        problem_id: id,
+        can_close: canClose,
+        domain_count: domainCount,
+        message: canClose 
+          ? 'Evidence threshold met (2+ domains).' 
+          : 'Insufficient evidence. Closing a problem requires evidence from at least 2 distinct domains (e.g. Lab + Clinical Sign).'
+      });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

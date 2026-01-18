@@ -27,6 +27,8 @@ import timelineRoutes from './routes/timeline.routes';
 import diaryRoutes from './routes/diary.routes';
 import securityRoutes from './routes/security.routes';
 import pivotRoutes from './routes/pivot.routes';
+import patientPivotRoutes from './routes/patient-pivot.routes';
+import testRoutes from './routes/test.routes';
 import biasRoutes from './routes/bias.routes';
 import factRoutes from './routes/fact.routes';
 import exportRoutes from './routes/export.routes';
@@ -37,11 +39,16 @@ import icdRoutes from './routes/icd.routes';
 import aiRoutes from './routes/ai.routes';
 import excelRoutes from './routes/excel.routes';
 import { requestContext } from './middleware/request-context.middleware';
+import { commonRateLimit, authRateLimit } from './middleware/rate-limit.middleware';
+import { metricsMiddleware } from './middleware/metrics.middleware';
+import { metricsService } from './services/metrics.service';
 
 const app = express();
 
 // Middleware
 app.use(helmet());
+app.use(metricsMiddleware);
+app.use(commonRateLimit);
 app.use(cors({
   origin: config.cors.allowedOrigins,
   credentials: true,
@@ -59,9 +66,15 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Metrics endpoint
+app.get('/metrics', async (req, res) => {
+  res.setHeader('Content-Type', metricsService.getContentType());
+  res.send(await metricsService.getMetrics());
+});
+
 // API Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/auth/oidc', oidcRoutes);
+app.use('/api/auth', authRateLimit, authRoutes);
+app.use('/api/auth/oidc', authRateLimit, oidcRoutes);
 app.use('/api/auth/session', sessionRoutes);
 app.use('/api/patients', patientRoutes);
 app.use('/api/problems', problemRoutes);
@@ -70,6 +83,8 @@ app.use('/api/trials', trialRoutes);
 app.use('/api/timeline', timelineRoutes);
 app.use('/api/diary', diaryRoutes);
 app.use('/api/pivots', pivotRoutes);
+app.use('/api/patient-pivots', patientPivotRoutes);
+app.use('/api/tests', testRoutes);
 app.use('/api/bias', biasRoutes);
 app.use('/api/facts', factRoutes);
 app.use('/api/export', exportRoutes);
@@ -96,8 +111,10 @@ app.use((req, res) => {
 
 const PORT = config.port;
 
-app.listen(PORT, () => {
-  logger.info({ port: PORT, db: config.database.type, env: config.nodeEnv }, 'Medical Diagnosis API server started');
-});
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, () => {
+    logger.info({ port: PORT, db: config.database.type, env: config.nodeEnv }, 'Medical Diagnosis API server started');
+  });
+}
 
 export default app;
