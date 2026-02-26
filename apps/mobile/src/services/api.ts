@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-// For local dev, replace with your machine IP
-const API_URL = 'http://localhost:3001/api';
+// For local dev on simulator/emulator, replace localhost with your machine IP when needed.
+const API_URL = 'http://localhost:3000/api';
 
 const api = axios.create({
   baseURL: API_URL,
@@ -12,7 +12,7 @@ const api = axios.create({
 
 export const diaryService = {
   getEntries: async (patientId: string) => {
-    const response = await api.get(`/diary?patientId=${patientId}`);
+    const response = await api.get(`/diary/patient/${patientId}`);
     return response.data;
   },
   createEntry: async (entry: any) => {
@@ -20,7 +20,7 @@ export const diaryService = {
     return response.data;
   },
   getStats: async (patientId: string) => {
-    const response = await api.get(`/diary/stats/${patientId}`);
+    const response = await api.get(`/diary/patient/${patientId}/stats`);
     return response.data;
   },
 };

@@ -12,6 +12,14 @@ export interface IDatabase {
   close(): Promise<void>;
 }
 
+function toPostgresPlaceholders(sql: string): string {
+  let index = 0;
+  return sql.replace(/\?/g, () => {
+    index += 1;
+    return `$${index}`;
+  });
+}
+
 class PostgreSQLDatabase implements IDatabase {
   private pool: Pool;
 
@@ -26,13 +34,14 @@ class PostgreSQLDatabase implements IDatabase {
   }
 
   async query(sql: string, params: any[] = []): Promise<any[]> {
+    const pgSql = toPostgresPlaceholders(sql);
     // Try to create a DB span when tracing is enabled
     try {
       const api = await import('@opentelemetry/api');
       const tracer = api.trace.getTracer('diagnosticox-db');
-      return tracer.startActiveSpan('db.query', { attributes: { db_system: 'postgres', db_statement: sql } }, async (span: any) => {
+      return tracer.startActiveSpan('db.query', { attributes: { db_system: 'postgres', db_statement: pgSql } }, async (span: any) => {
         try {
-          const result = await this.pool.query(sql, params);
+          const result = await this.pool.query(pgSql, params);
           return result.rows;
         } catch (err) {
           span.recordException(err);
@@ -42,18 +51,19 @@ class PostgreSQLDatabase implements IDatabase {
         }
       });
     } catch (_) {
-      const result = await this.pool.query(sql, params);
+      const result = await this.pool.query(pgSql, params);
       return result.rows;
     }
   }
 
   async execute(sql: string, params: any[] = []): Promise<void> {
+    const pgSql = toPostgresPlaceholders(sql);
     try {
       const api = await import('@opentelemetry/api');
       const tracer = api.trace.getTracer('diagnosticox-db');
-      await tracer.startActiveSpan('db.execute', { attributes: { db_system: 'postgres', db_statement: sql } }, async (span: any) => {
+      await tracer.startActiveSpan('db.execute', { attributes: { db_system: 'postgres', db_statement: pgSql } }, async (span: any) => {
         try {
-          await this.pool.query(sql, params);
+          await this.pool.query(pgSql, params);
         } catch (err) {
           span.recordException(err);
           throw err;
@@ -62,17 +72,18 @@ class PostgreSQLDatabase implements IDatabase {
         }
       });
     } catch (_) {
-      await this.pool.query(sql, params);
+      await this.pool.query(pgSql, params);
     }
   }
 
   async get(sql: string, params: any[] = []): Promise<any | null> {
+    const pgSql = toPostgresPlaceholders(sql);
     try {
       const api = await import('@opentelemetry/api');
       const tracer = api.trace.getTracer('diagnosticox-db');
-      return tracer.startActiveSpan('db.get', { attributes: { db_system: 'postgres', db_statement: sql } }, async (span: any) => {
+      return tracer.startActiveSpan('db.get', { attributes: { db_system: 'postgres', db_statement: pgSql } }, async (span: any) => {
         try {
-          const result = await this.pool.query(sql, params);
+          const result = await this.pool.query(pgSql, params);
           return result.rows[0] || null;
         } catch (err) {
           span.recordException(err);
@@ -82,7 +93,7 @@ class PostgreSQLDatabase implements IDatabase {
         }
       });
     } catch (_) {
-      const result = await this.pool.query(sql, params);
+      const result = await this.pool.query(pgSql, params);
       return result.rows[0] || null;
     }
   }
@@ -174,18 +185,6 @@ class SQLiteDatabase implements IDatabase {
           return obj;
         });
       }
-      if (results.length === 0) return [];
-
-      const columns = results[0].columns;
-      const values = results[0].values;
-
-      return values.map((row: any[]) => {
-        const obj: any = {};
-        columns.forEach((col: string, idx: number) => {
-          obj[col] = row[idx];
-        });
-        return obj;
-      });
     } catch (error) {
       logger.error({ error }, 'Query error');
       return [];

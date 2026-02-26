@@ -113,10 +113,13 @@ export class SecurityController {
       
       const id = `audit_${Date.now()}_${Math.random().toString(36).substring(7)}`;
       
-      await db.execute(`
-        INSERT INTO audit_logs (id, organization_id, user_id, patient_id, action, table_name, record_id, changes, ip_address, user_agent)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `, [id, organizationId, userId, patient_id, action, table_name, record_id, changes, ip_address, user_agent]);
+      await db.execute(
+        `INSERT INTO audit_logs (
+          id, organization_id, user_id, patient_id, action,
+          table_name, record_id, changes, ip_address, user_agent, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [id, organizationId, userId, patient_id, action, table_name, record_id, changes, ip_address, user_agent, new Date().toISOString()]
+      );
       
       res.status(201).json({ message: 'Audit log created', id });
     } catch (error: any) {
@@ -285,8 +288,15 @@ export class SecurityController {
       
       const totalUsers = await db.get('SELECT COUNT(*) as count FROM users WHERE organization_id = ?', [organizationId]);
       const totalDepts = await db.get('SELECT COUNT(*) as count FROM departments WHERE organization_id = ?', [organizationId]);
-      const recentLogs = await db.get('SELECT COUNT(*) as count FROM audit_logs WHERE organization_id = ? AND timestamp > datetime("now", "-24 hours")', [organizationId]);
-      const criticalEvents = await db.get('SELECT COUNT(*) as count FROM audit_logs WHERE organization_id = ? AND severity = "critical" AND timestamp > datetime("now", "-24 hours")', [organizationId]);
+      const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const recentLogs = await db.get(
+        'SELECT COUNT(*) as count FROM audit_logs WHERE organization_id = ? AND created_at > ?',
+        [organizationId, since]
+      );
+      const criticalEvents = await db.get(
+        'SELECT COUNT(*) as count FROM audit_logs WHERE organization_id = ? AND action IN ("delete") AND created_at > ?',
+        [organizationId, since]
+      );
       const totalOrgs = { count: 1 };
       
       res.json({

@@ -6,6 +6,7 @@ const router = Router();
 
 router.use(authenticate, enforceTenant);
 
+router.get('/', treatmentTrialController.list.bind(treatmentTrialController));
 router.get('/patient/:patientId', treatmentTrialController.listForPatient.bind(treatmentTrialController));
 router.get('/:id', treatmentTrialController.get.bind(treatmentTrialController));
 router.post('/', authorize('admin', 'clinician'), treatmentTrialController.create.bind(treatmentTrialController));

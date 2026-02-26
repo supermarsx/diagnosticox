@@ -8,9 +8,13 @@ const router = Router();
 
 router.use(authenticate, enforceTenant);
 
+router.get('/', problemController.list.bind(problemController));
 router.get('/patient/:patientId', problemController.listForPatient.bind(problemController));
-router.get('/:id', problemController.get.bind(problemController));
+router.get('/:id/hypotheses', problemController.listHypotheses.bind(problemController));
+router.post('/:id/hypotheses', authorize('admin', 'clinician'), problemController.createHypothesis.bind(problemController));
+router.put('/hypotheses/:hypothesisId', authorize('admin', 'clinician'), problemController.updateHypothesis.bind(problemController));
 router.get('/:id/validate-closure', problemController.validateClosure.bind(problemController));
+router.get('/:id', problemController.get.bind(problemController));
 router.post('/', authorize('admin', 'clinician'), validate(problemSchema), problemController.create.bind(problemController));
 router.put('/:id', authorize('admin', 'clinician'), problemController.update.bind(problemController));
 

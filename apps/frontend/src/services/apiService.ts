@@ -2,7 +2,10 @@ import { offlineStorage } from './offlineStorage';
 import { demoPatients, demoProblems, demoHypotheses, demoTimelineEvents, demoUser } from './demoData';
 import type { Patient, Problem, Hypothesis, Trial, TimelineEvent, DiaryEntry } from '../types/medical';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL ||
+  import.meta.env.VITE_API_BASE_URL ||
+  'http://localhost:3000/api';
 
 /**
  * ApiService
@@ -320,13 +323,14 @@ class ApiService {
   // Problems
   async getProblems(patientId: string): Promise<{ problems: Problem[] }> {
     try {
-      const data = await this.request<{ problems: Problem[] }>(`/problems?patientId=${patientId}`);
-      
-      if (data.problems) {
-        await offlineStorage.saveProblems(data.problems);
+      const data = await this.request<{ problems?: Problem[] } | Problem[]>(`/problems?patientId=${patientId}`);
+      const problems = Array.isArray(data) ? data : (data.problems || []);
+
+      if (problems.length) {
+        await offlineStorage.saveProblems(problems);
       }
-      
-      return data;
+
+      return { problems };
     } catch (error) {
       // Fallback to demo data
       const demoProblemsForPatient = demoProblems.filter(p => p.patient_id === patientId);
@@ -368,17 +372,23 @@ class ApiService {
   }
 
   async createHypothesis(hypothesis: Partial<Hypothesis>): Promise<Hypothesis> {
-    return this.request<Hypothesis>('/hypotheses', {
+    if (!hypothesis.problem_id) {
+      throw new Error('problem_id is required to create a hypothesis');
+    }
+
+    const response = await this.request<{ hypothesis: Hypothesis }>(`/problems/${hypothesis.problem_id}/hypotheses`, {
       method: 'POST',
       body: JSON.stringify(hypothesis),
     });
+    return response.hypothesis;
   }
 
   async updateHypothesis(id: string, updates: Partial<Hypothesis>): Promise<Hypothesis> {
-    return this.request<Hypothesis>(`/hypotheses/${id}`, {
+    const response = await this.request<{ hypothesis: Hypothesis }>(`/problems/hypotheses/${id}`, {
       method: 'PUT',
       body: JSON.stringify(updates),
     });
+    return response.hypothesis;
   }
 
   // Bayesian Calculator
@@ -404,13 +414,14 @@ class ApiService {
   // Trials
   async getTrials(patientId: string): Promise<{ trials: Trial[] }> {
     try {
-      const data = await this.request<{ trials: Trial[] }>(`/trials?patientId=${patientId}`);
-      
-      if (data.trials) {
-        await offlineStorage.saveTrials(data.trials);
+      const data = await this.request<{ trials?: Trial[] } | Trial[]>(`/trials?patientId=${patientId}`);
+      const trials = Array.isArray(data) ? data : (data.trials || []);
+
+      if (trials.length) {
+        await offlineStorage.saveTrials(trials);
       }
-      
-      return data;
+
+      return { trials };
     } catch (error) {
       // Fallback to empty array for demo mode
       console.warn('Using empty trials data for patient', patientId);
@@ -435,13 +446,14 @@ class ApiService {
   // Timeline
   async getTimelineEvents(patientId: string): Promise<{ events: TimelineEvent[] }> {
     try {
-      const data = await this.request<{ events: TimelineEvent[] }>(`/timeline?patientId=${patientId}`);
-      
-      if (data.events) {
-        await offlineStorage.saveTimelineEvents(data.events);
+      const data = await this.request<{ events?: TimelineEvent[] } | TimelineEvent[]>(`/timeline?patientId=${patientId}`);
+      const events = Array.isArray(data) ? data : (data.events || []);
+
+      if (events.length) {
+        await offlineStorage.saveTimelineEvents(events);
       }
-      
-      return data;
+
+      return { events };
     } catch (error) {
       // Fallback to demo timeline events
       const demoEventsForPatient = demoTimelineEvents.filter(e => e.patient_id === patientId);
@@ -459,13 +471,14 @@ class ApiService {
 
   // Diary
   async getDiaryEntries(patientId: string): Promise<{ entries: DiaryEntry[] }> {
-    const data = await this.request<{ entries: DiaryEntry[] }>(`/diary?patientId=${patientId}`);
-    
-    if (data.entries) {
-      await offlineStorage.saveDiaryEntries(data.entries);
+    const data = await this.request<{ entries?: DiaryEntry[] } | DiaryEntry[]>(`/diary?patientId=${patientId}`);
+    const entries = Array.isArray(data) ? data : (data.entries || []);
+
+    if (entries.length) {
+      await offlineStorage.saveDiaryEntries(entries);
     }
-    
-    return data;
+
+    return { entries };
   }
 
   async createDiaryEntry(entry: Partial<DiaryEntry>): Promise<DiaryEntry> {

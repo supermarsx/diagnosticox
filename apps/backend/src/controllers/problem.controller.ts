@@ -10,6 +10,29 @@ import { generateEtag } from '../utils/etag';
 export class ProblemController {
   private db = getDatabase();
 
+  async list(req: AuthRequest, res: Response) {
+    try {
+      const patientId = (req.query.patientId as string | undefined)?.trim();
+      if (!patientId) {
+        return res.status(400).json({ error: 'patientId query parameter is required' });
+      }
+
+      const organizationId = req.tenantId || req.user!.organizationId;
+      await ensurePatientAccessible(patientId, organizationId);
+
+      const problems = (await this.db.query(
+        `SELECT * FROM problems
+         WHERE patient_id = ? AND organization_id = ?
+         ORDER BY priority DESC, created_at DESC`,
+        [patientId, organizationId]
+      )) as ProblemBase[];
+
+      res.json({ problems });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
   async listForPatient(req: AuthRequest, res: Response) {
     try {
       const { patientId } = req.params;
@@ -56,6 +79,176 @@ export class ProblemController {
       res.setHeader('ETag', generateEtag(problem));
       res.setHeader('Cache-Control', 'no-store');
       res.json(payload);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  async listHypotheses(req: AuthRequest, res: Response) {
+    try {
+      const { id } = req.params;
+      const organizationId = req.tenantId || req.user!.organizationId;
+
+      const problem = await this.db.get(
+        'SELECT id FROM problems WHERE id = ? AND organization_id = ?',
+        [id, organizationId]
+      );
+      if (!problem) {
+        return res.status(404).json({ error: 'Problem not found' });
+      }
+
+      const hypotheses = await this.db.query(
+        `SELECT * FROM hypotheses
+         WHERE problem_id = ? AND organization_id = ?
+         ORDER BY rank ASC, current_probability DESC`,
+        [id, organizationId]
+      );
+
+      res.json({ hypotheses });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  async createHypothesis(req: AuthRequest, res: Response) {
+    try {
+      const { id: problemId } = req.params;
+      const organizationId = req.tenantId || req.user!.organizationId;
+      const {
+        diagnosis_code,
+        diagnosis_name,
+        pretest_probability,
+        current_probability,
+        evidence_strength,
+        clinical_reasoning,
+        supporting_facts,
+        refuting_facts,
+        rank,
+      } = req.body;
+
+      if (!diagnosis_name || pretest_probability === undefined || current_probability === undefined) {
+        return res.status(400).json({ error: 'Missing required hypothesis fields' });
+      }
+
+      const problem = await this.db.get(
+        'SELECT id, patient_id FROM problems WHERE id = ? AND organization_id = ?',
+        [problemId, organizationId]
+      );
+      if (!problem) {
+        return res.status(404).json({ error: 'Problem not found' });
+      }
+
+      const hypothesisId = uuidv4();
+      const now = new Date().toISOString();
+
+      await this.db.execute(
+        `INSERT INTO hypotheses (
+          id, problem_id, organization_id, diagnosis_code, diagnosis_name,
+          pretest_probability, current_probability, evidence_strength,
+          clinical_reasoning, supporting_facts, refuting_facts, rank, status,
+          created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          hypothesisId,
+          problemId,
+          organizationId,
+          diagnosis_code || null,
+          diagnosis_name,
+          Number(pretest_probability),
+          Number(current_probability),
+          evidence_strength || 'moderate',
+          clinical_reasoning || null,
+          JSON.stringify(supporting_facts || []),
+          JSON.stringify(refuting_facts || []),
+          rank ?? 0,
+          'active',
+          now,
+          now,
+        ]
+      );
+
+      const hypothesis = await this.db.get('SELECT * FROM hypotheses WHERE id = ?', [hypothesisId]);
+
+      await writeAuditLog({
+        organizationId,
+        userId: req.user?.userId,
+        patientId: problem.patient_id,
+        table: 'hypotheses',
+        recordId: hypothesisId,
+        action: 'create',
+        changes: { diagnosis_name, pretest_probability, current_probability },
+        ip: req.ip,
+        userAgent: req.get('user-agent') || undefined,
+      });
+
+      res.status(201).json({ hypothesis });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  async updateHypothesis(req: AuthRequest, res: Response) {
+    try {
+      const { hypothesisId } = req.params;
+      const organizationId = req.tenantId || req.user!.organizationId;
+
+      const existing = await this.db.get(
+        'SELECT id, problem_id FROM hypotheses WHERE id = ? AND organization_id = ?',
+        [hypothesisId, organizationId]
+      );
+      if (!existing) {
+        return res.status(404).json({ error: 'Hypothesis not found' });
+      }
+
+      const allowedFields = [
+        'diagnosis_code',
+        'diagnosis_name',
+        'pretest_probability',
+        'current_probability',
+        'evidence_strength',
+        'clinical_reasoning',
+        'supporting_facts',
+        'refuting_facts',
+        'rank',
+        'status',
+      ];
+
+      const fields: string[] = [];
+      const values: any[] = [];
+      for (const [key, value] of Object.entries(req.body || {})) {
+        if (allowedFields.includes(key)) {
+          fields.push(`${key} = ?`);
+          if (key === 'supporting_facts' || key === 'refuting_facts') {
+            values.push(JSON.stringify(value));
+          } else {
+            values.push(value);
+          }
+        }
+      }
+
+      if (fields.length === 0) {
+        return res.status(400).json({ error: 'No valid fields to update' });
+      }
+
+      fields.push('updated_at = ?');
+      values.push(new Date().toISOString());
+      values.push(hypothesisId);
+
+      await this.db.execute(`UPDATE hypotheses SET ${fields.join(', ')} WHERE id = ?`, values);
+
+      const hypothesis = await this.db.get('SELECT * FROM hypotheses WHERE id = ?', [hypothesisId]);
+      await writeAuditLog({
+        organizationId,
+        userId: req.user?.userId,
+        table: 'hypotheses',
+        recordId: hypothesisId,
+        action: 'update',
+        changes: req.body,
+        ip: req.ip,
+        userAgent: req.get('user-agent') || undefined,
+      });
+
+      res.json({ hypothesis });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

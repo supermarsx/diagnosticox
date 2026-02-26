@@ -6,6 +6,7 @@ const router = Router();
 
 router.use(authenticate, enforceTenant);
 
+router.get('/', diaryController.list.bind(diaryController));
 router.get('/patient/:patientId', diaryController.listForPatient.bind(diaryController));
 router.get('/patient/:patientId/stats', diaryController.getStats.bind(diaryController));
 router.post('/', authorize('admin', 'clinician'), diaryController.create.bind(diaryController));

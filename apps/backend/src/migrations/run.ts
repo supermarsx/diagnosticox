@@ -9,8 +9,8 @@ import { up as patientPivots } from './007_patient_pivots';
 import { up as advancedRLS } from './008_advanced_rls';
 
 async function runMigrations() {
+  const logger = (await import('../services/logger.service')).default;
   try {
-    const logger = (await import('../services/logger.service')).default;
     logger.info('Running database migrations...');
     await initialSchema();
     await securitySchema();

@@ -74,20 +74,20 @@ export async function up() {
     )
   `);
 
-  // Create audit_logs table
+  // Create audit_logs table (kept aligned with 001_initial_schema shape)
   await db.execute(`
     CREATE TABLE IF NOT EXISTS audit_logs (
       id TEXT PRIMARY KEY,
-      timestamp TEXT DEFAULT (datetime('now')),
-      user_email TEXT NOT NULL,
+      organization_id TEXT NOT NULL,
+      user_id TEXT,
+      patient_id TEXT,
       action TEXT NOT NULL,
-      resource TEXT,
-      status TEXT NOT NULL,
-      severity TEXT NOT NULL,
+      table_name TEXT NOT NULL,
+      record_id TEXT,
+      changes TEXT,
       ip_address TEXT,
-      location TEXT,
-      details TEXT,
-      metadata TEXT DEFAULT '{}'
+      user_agent TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
     )
   `);
 

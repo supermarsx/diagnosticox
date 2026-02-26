@@ -8,6 +8,29 @@ import { writeAuditLog } from '../utils/audit';
 export class TreatmentTrialController {
   private db = getDatabase();
 
+  async list(req: AuthRequest, res: Response) {
+    try {
+      const patientId = (req.query.patientId as string | undefined)?.trim();
+      if (!patientId) {
+        return res.status(400).json({ error: 'patientId query parameter is required' });
+      }
+
+      const organizationId = req.tenantId || req.user!.organizationId;
+      await ensurePatientAccessible(patientId, organizationId);
+
+      const trials = await this.db.query(
+        `SELECT * FROM treatment_trials
+         WHERE patient_id = ? AND organization_id = ?
+         ORDER BY start_date DESC`,
+        [patientId, organizationId]
+      );
+
+      res.json({ trials });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
   async listForPatient(req: AuthRequest, res: Response) {
     try {
       const { patientId } = req.params;

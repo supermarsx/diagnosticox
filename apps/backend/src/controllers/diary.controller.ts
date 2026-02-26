@@ -8,6 +8,41 @@ import { writeAuditLog } from '../utils/audit';
 export class DiaryController {
   private db = getDatabase();
 
+  async list(req: AuthRequest, res: Response) {
+    try {
+      const patientId = (req.query.patientId as string | undefined)?.trim();
+      if (!patientId) {
+        return res.status(400).json({ error: 'patientId query parameter is required' });
+      }
+
+      const organizationId = req.tenantId || req.user!.organizationId;
+      const { start_date, end_date, entry_type } = req.query;
+      await ensurePatientAccessible(patientId, organizationId);
+
+      let query = `SELECT * FROM patient_diary WHERE patient_id = ? AND organization_id = ?`;
+      const params: any[] = [patientId, organizationId];
+
+      if (start_date) {
+        query += ' AND entry_date >= ?';
+        params.push(start_date);
+      }
+      if (end_date) {
+        query += ' AND entry_date <= ?';
+        params.push(end_date);
+      }
+      if (entry_type) {
+        query += ' AND entry_type = ?';
+        params.push(entry_type);
+      }
+
+      query += ' ORDER BY entry_date DESC';
+      const entries = await this.db.query(query, params);
+      res.json({ entries });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
   async listForPatient(req: AuthRequest, res: Response) {
     try {
       const { patientId } = req.params;

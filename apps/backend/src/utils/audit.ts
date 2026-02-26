@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { getDatabase } from '../config/database';
 
-type AuditAction = 'create' | 'update' | 'delete' | 'access';
+type AuditAction = 'create' | 'update' | 'delete' | 'access' | 'import' | 'batch_update';
 
 interface AuditOptions {
   organizationId: string;
@@ -24,7 +24,7 @@ export async function writeAuditLog(opts: AuditOptions) {
   await db.execute(
     `INSERT INTO audit_logs (
       id, organization_id, user_id, patient_id, action,
-      table_name, record_id, changes, ip_address, user_agent, timestamp
+      table_name, record_id, changes, ip_address, user_agent, created_at
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,

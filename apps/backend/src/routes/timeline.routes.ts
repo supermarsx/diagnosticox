@@ -6,6 +6,7 @@ const router = Router();
 
 router.use(authenticate, enforceTenant);
 
+router.get('/', timelineController.list.bind(timelineController));
 router.get('/patient/:patientId', timelineController.listForPatient.bind(timelineController));
 router.post('/', authorize('admin', 'clinician'), timelineController.create.bind(timelineController));
 

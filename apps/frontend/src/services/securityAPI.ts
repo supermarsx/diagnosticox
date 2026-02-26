@@ -1,10 +1,13 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL ||
+  import.meta.env.VITE_API_BASE_URL ||
+  'http://localhost:3000/api';
 
 // Get auth token from localStorage
 const getAuthToken = () => {
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('auth_token') || localStorage.getItem('token');
   return token;
 };
 
@@ -164,7 +167,7 @@ export const securityAPI = {
   // Auth Methods & MFA
   async getAuthMethods(userId: string): Promise<{ authMethods: any[] }> {
     const response = await apiClient.get(`/security/auth-methods/${userId}`);
-    return { authMethods: response.data.authMethods || [] };
+    return { authMethods: response.data.authMethods || response.data.methods || [] };
   },
 
   async getTrustedDevices(userId: string): Promise<{ devices: any[] }> {

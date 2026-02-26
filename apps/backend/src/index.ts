@@ -44,6 +44,7 @@ import { metricsMiddleware } from './middleware/metrics.middleware';
 import { metricsService } from './services/metrics.service';
 
 const app = express();
+const apiRouter = express.Router();
 
 // Middleware
 app.use(helmet());
@@ -73,28 +74,32 @@ app.get('/metrics', async (req, res) => {
 });
 
 // API Routes
-app.use('/api/auth', authRateLimit, authRoutes);
-app.use('/api/auth/oidc', authRateLimit, oidcRoutes);
-app.use('/api/auth/session', sessionRoutes);
-app.use('/api/patients', patientRoutes);
-app.use('/api/problems', problemRoutes);
-app.use('/api/bayesian', bayesianRoutes);
-app.use('/api/trials', trialRoutes);
-app.use('/api/timeline', timelineRoutes);
-app.use('/api/diary', diaryRoutes);
-app.use('/api/pivots', pivotRoutes);
-app.use('/api/patient-pivots', patientPivotRoutes);
-app.use('/api/tests', testRoutes);
-app.use('/api/bias', biasRoutes);
-app.use('/api/facts', factRoutes);
-app.use('/api/export', exportRoutes);
-app.use('/api/fhir', fhirRoutes);
-app.use('/api/import', importRoutes);
-app.use('/api/reports', reportRoutes);
-app.use('/api/icd', icdRoutes);
-app.use('/api/ai', aiRoutes);
-app.use('/api/excel', excelRoutes);
-app.use('/api/security', securityRoutes);
+apiRouter.use('/auth', authRateLimit, authRoutes);
+apiRouter.use('/auth/oidc', authRateLimit, oidcRoutes);
+apiRouter.use('/auth/session', sessionRoutes);
+apiRouter.use('/patients', patientRoutes);
+apiRouter.use('/problems', problemRoutes);
+apiRouter.use('/bayesian', bayesianRoutes);
+apiRouter.use('/trials', trialRoutes);
+apiRouter.use('/timeline', timelineRoutes);
+apiRouter.use('/diary', diaryRoutes);
+apiRouter.use('/pivots', pivotRoutes);
+apiRouter.use('/patient-pivots', patientPivotRoutes);
+apiRouter.use('/tests', testRoutes);
+apiRouter.use('/bias', biasRoutes);
+apiRouter.use('/facts', factRoutes);
+apiRouter.use('/export', exportRoutes);
+apiRouter.use('/fhir', fhirRoutes);
+apiRouter.use('/import', importRoutes);
+apiRouter.use('/reports', reportRoutes);
+apiRouter.use('/icd', icdRoutes);
+apiRouter.use('/ai', aiRoutes);
+apiRouter.use('/excel', excelRoutes);
+apiRouter.use('/security', securityRoutes);
+
+// Keep backward compatibility on /api and add spec-aligned /api/v1
+app.use('/api', apiRouter);
+app.use('/api/v1', apiRouter);
 
 // Error handling
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
