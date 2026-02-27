@@ -1,6 +1,17 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Compass, FlaskConical, Database, NotebookPen, Timeline, Target } from 'lucide-react';
+import {
+  ArrowLeft,
+  Compass,
+  FlaskConical,
+  Database,
+  NotebookPen,
+  Timeline,
+  Target,
+  Beaker,
+  Brain,
+  FileText,
+} from 'lucide-react';
 import SelfDiscoveryNav from '../components/SelfDiscoveryNav';
 import { selfDiscoveryStorage } from '../services/selfDiscoveryStorage';
 
@@ -34,7 +45,7 @@ export default function SelfDiscoveryHubPage() {
       <main className="max-w-6xl mx-auto px-4 py-6 space-y-6">
         <SelfDiscoveryNav />
 
-        <section className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <section className="grid grid-cols-1 md:grid-cols-4 xl:grid-cols-7 gap-4">
           <div className="glass-card p-4">
             <p className="text-sm text-gray-600">Timeline</p>
             <p className="text-3xl font-bold text-cyan-700">{stats.timelineEvents}</p>
@@ -54,6 +65,14 @@ export default function SelfDiscoveryHubPage() {
           <div className="glass-card p-4">
             <p className="text-sm text-gray-600">Active Leads</p>
             <p className="text-3xl font-bold text-cyan-700">{stats.activeHypotheses}</p>
+          </div>
+          <div className="glass-card p-4">
+            <p className="text-sm text-gray-600">Active Protocols</p>
+            <p className="text-3xl font-bold text-cyan-700">{stats.activeProtocols}</p>
+          </div>
+          <div className="glass-card p-4">
+            <p className="text-sm text-gray-600">Pending Reminders</p>
+            <p className="text-3xl font-bold text-cyan-700">{stats.pendingReminders}</p>
           </div>
         </section>
 
@@ -77,6 +96,21 @@ export default function SelfDiscoveryHubPage() {
             <NotebookPen className="h-6 w-6 text-cyan-700 mb-3" />
             <h2 className="font-bold text-gray-900 mb-1">Reflection Journal</h2>
             <p className="text-sm text-gray-600">Capture shifts in mindset, questions, and course corrections.</p>
+          </Link>
+          <Link to="/self-discovery/protocols" className="glass-card p-5 hover-lift block">
+            <Beaker className="h-6 w-6 text-cyan-700 mb-3" />
+            <h2 className="font-bold text-gray-900 mb-1">Protocol Lab</h2>
+            <p className="text-sm text-gray-600">Design and run N=1 experiments against your hypotheses.</p>
+          </Link>
+          <Link to="/self-discovery/insights" className="glass-card p-5 hover-lift block">
+            <Brain className="h-6 w-6 text-cyan-700 mb-3" />
+            <h2 className="font-bold text-gray-900 mb-1">Insights Center</h2>
+            <p className="text-sm text-gray-600">Turn your logs into trends, consistency scores, and reminders.</p>
+          </Link>
+          <Link to="/self-discovery/report" className="glass-card p-5 hover-lift block">
+            <FileText className="h-6 w-6 text-cyan-700 mb-3" />
+            <h2 className="font-bold text-gray-900 mb-1">Report & Export</h2>
+            <p className="text-sm text-gray-600">Generate a handoff summary and import/export your full bundle.</p>
           </Link>
         </section>
 
@@ -119,4 +153,3 @@ export default function SelfDiscoveryHubPage() {
     </div>
   );
 }
-

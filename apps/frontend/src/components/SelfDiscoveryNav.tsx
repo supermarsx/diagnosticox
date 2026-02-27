@@ -1,12 +1,15 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Compass, Timeline, FlaskConical, Database, NotebookPen } from 'lucide-react';
+import { Compass, Timeline, FlaskConical, Database, NotebookPen, Beaker, Brain, FileText } from 'lucide-react';
 
 const ITEMS = [
   { to: '/self-discovery', label: 'Hub', icon: Compass },
   { to: '/self-discovery/timeline', label: 'Timeline', icon: Timeline },
   { to: '/self-discovery/hypotheses', label: 'Hypotheses', icon: FlaskConical },
+  { to: '/self-discovery/protocols', label: 'Protocols', icon: Beaker },
   { to: '/self-discovery/evidence', label: 'Evidence', icon: Database },
+  { to: '/self-discovery/insights', label: 'Insights', icon: Brain },
   { to: '/self-discovery/journal', label: 'Journal', icon: NotebookPen },
+  { to: '/self-discovery/report', label: 'Report', icon: FileText },
 ];
 
 export default function SelfDiscoveryNav() {
@@ -38,4 +41,3 @@ export default function SelfDiscoveryNav() {
     </nav>
   );
 }
-

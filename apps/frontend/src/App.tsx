@@ -47,6 +47,9 @@ import SelfDiscoveryTimelinePage from './pages/SelfDiscoveryTimelinePage';
 import SelfDiscoveryHypothesesPage from './pages/SelfDiscoveryHypothesesPage';
 import SelfDiscoveryEvidencePage from './pages/SelfDiscoveryEvidencePage';
 import SelfDiscoveryJournalPage from './pages/SelfDiscoveryJournalPage';
+import SelfDiscoveryProtocolsPage from './pages/SelfDiscoveryProtocolsPage';
+import SelfDiscoveryInsightsPage from './pages/SelfDiscoveryInsightsPage';
+import SelfDiscoveryReportPage from './pages/SelfDiscoveryReportPage';
 import { apiService } from './services/apiService';
 
 function App() {
@@ -500,12 +503,24 @@ function App() {
           element={user ? <SelfDiscoveryHypothesesPage /> : <Navigate to="/login" replace />}
         />
         <Route
+          path="/self-discovery/protocols"
+          element={user ? <SelfDiscoveryProtocolsPage /> : <Navigate to="/login" replace />}
+        />
+        <Route
           path="/self-discovery/evidence"
           element={user ? <SelfDiscoveryEvidencePage /> : <Navigate to="/login" replace />}
         />
         <Route
+          path="/self-discovery/insights"
+          element={user ? <SelfDiscoveryInsightsPage /> : <Navigate to="/login" replace />}
+        />
+        <Route
           path="/self-discovery/journal"
           element={user ? <SelfDiscoveryJournalPage /> : <Navigate to="/login" replace />}
+        />
+        <Route
+          path="/self-discovery/report"
+          element={user ? <SelfDiscoveryReportPage /> : <Navigate to="/login" replace />}
         />
         <Route
           path="/"
