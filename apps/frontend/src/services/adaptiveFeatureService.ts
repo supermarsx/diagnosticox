@@ -14,7 +14,7 @@
 /**
  * Usage mode types
  */
-export type UsageMode = 'clinical' | 'study' | 'student' | 'hospital' | 'self_exploration';
+export type UsageMode = 'clinical' | 'study' | 'student' | 'hospital' | 'self_exploration' | 'self_discovery';
 
 /**
  * Cost tracking interface
@@ -342,6 +342,15 @@ class AdaptiveFeatureService {
       
       case 'self_exploration':
         return basePermissions.map(p => ({ ...p, read: true }));
+      case 'self_discovery':
+        return basePermissions.map(p => ({
+          ...p,
+          read: true,
+          write: p.resource !== 'patient_records',
+          delete: false,
+          share: p.resource === 'research_data',
+          export: true,
+        }));
       
       default:
         return basePermissions;
@@ -357,7 +366,8 @@ class AdaptiveFeatureService {
       hospital: { duration: 10, unit: 'years', autoDelete: false, archiveEnabled: true },
       study: { duration: 5, unit: 'years', autoDelete: true, archiveEnabled: true },
       student: { duration: 90, unit: 'days', autoDelete: true, archiveEnabled: false },
-      self_exploration: { duration: 30, unit: 'days', autoDelete: true, archiveEnabled: false }
+      self_exploration: { duration: 30, unit: 'days', autoDelete: true, archiveEnabled: false },
+      self_discovery: { duration: 12, unit: 'months', autoDelete: false, archiveEnabled: true }
     };
 
     return policies[mode];

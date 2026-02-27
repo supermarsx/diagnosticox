@@ -25,6 +25,9 @@ export enum UsageMode {
   
   /** Patient-facing, simplified, consumer-friendly */
   SELF_EXPLORATION = 'self_exploration',
+
+  /** Individual-led deep investigation and personal pattern discovery */
+  SELF_DISCOVERY = 'self_discovery',
 }
 
 /**
@@ -119,6 +122,7 @@ const FEATURE_REGISTRY: Feature[] = [
       UsageMode.CLINICAL_SETTING,
       UsageMode.CLINICAL_STUDY,
       UsageMode.FULL_HOSPITAL,
+      UsageMode.SELF_DISCOVERY,
     ],
   },
   
@@ -133,6 +137,7 @@ const FEATURE_REGISTRY: Feature[] = [
       UsageMode.CLINICAL_STUDY,
       UsageMode.FULL_HOSPITAL,
       UsageMode.STUDENT,
+      UsageMode.SELF_DISCOVERY,
     ],
   },
   {
@@ -144,6 +149,7 @@ const FEATURE_REGISTRY: Feature[] = [
       UsageMode.CLINICAL_SETTING,
       UsageMode.CLINICAL_STUDY,
       UsageMode.FULL_HOSPITAL,
+      UsageMode.SELF_DISCOVERY,
     ],
   },
   {
@@ -165,6 +171,7 @@ const FEATURE_REGISTRY: Feature[] = [
       UsageMode.CLINICAL_STUDY,
       UsageMode.STUDENT,
       UsageMode.FULL_HOSPITAL,
+      UsageMode.SELF_DISCOVERY,
     ],
   },
   {
@@ -176,6 +183,7 @@ const FEATURE_REGISTRY: Feature[] = [
       UsageMode.CLINICAL_SETTING,
       UsageMode.CLINICAL_STUDY,
       UsageMode.FULL_HOSPITAL,
+      UsageMode.SELF_DISCOVERY,
     ],
   },
   {
@@ -187,6 +195,7 @@ const FEATURE_REGISTRY: Feature[] = [
       UsageMode.CLINICAL_SETTING,
       UsageMode.CLINICAL_STUDY,
       UsageMode.FULL_HOSPITAL,
+      UsageMode.SELF_DISCOVERY,
     ],
   },
   
@@ -228,14 +237,14 @@ const FEATURE_REGISTRY: Feature[] = [
     name: 'Medical Case Studies',
     description: 'Educational case library',
     category: FeatureCategory.EDUCATIONAL,
-    enabledInModes: [UsageMode.STUDENT, UsageMode.CLINICAL_STUDY],
+    enabledInModes: [UsageMode.STUDENT, UsageMode.CLINICAL_STUDY, UsageMode.SELF_DISCOVERY],
   },
   {
     id: 'diagnostic_reasoning',
     name: 'Diagnostic Reasoning Trainer',
     description: 'VINDICATE-M mnemonic and systematic diagnosis',
     category: FeatureCategory.EDUCATIONAL,
-    enabledInModes: [UsageMode.STUDENT, UsageMode.CLINICAL_STUDY],
+    enabledInModes: [UsageMode.STUDENT, UsageMode.CLINICAL_STUDY, UsageMode.SELF_DISCOVERY],
   },
   
   // Research Features
@@ -244,7 +253,7 @@ const FEATURE_REGISTRY: Feature[] = [
     name: 'Research Data Collection',
     description: 'IRB-compliant data collection tools',
     category: FeatureCategory.RESEARCH,
-    enabledInModes: [UsageMode.CLINICAL_STUDY],
+    enabledInModes: [UsageMode.CLINICAL_STUDY, UsageMode.SELF_DISCOVERY],
   },
   {
     id: 'analytics_dashboard',
@@ -254,6 +263,7 @@ const FEATURE_REGISTRY: Feature[] = [
     enabledInModes: [
       UsageMode.CLINICAL_STUDY,
       UsageMode.FULL_HOSPITAL,
+      UsageMode.SELF_DISCOVERY,
     ],
   },
   
@@ -263,23 +273,30 @@ const FEATURE_REGISTRY: Feature[] = [
     name: 'Patient Diary',
     description: 'Personal symptom and mood tracking',
     category: FeatureCategory.PATIENT_FACING,
-    enabledInModes: [UsageMode.SELF_EXPLORATION],
+    enabledInModes: [UsageMode.SELF_EXPLORATION, UsageMode.SELF_DISCOVERY],
   },
   {
     id: 'simplified_ui',
     name: 'Simplified UI',
     description: 'Consumer-friendly interface',
     category: FeatureCategory.PATIENT_FACING,
-    enabledInModes: [UsageMode.SELF_EXPLORATION],
+    enabledInModes: [UsageMode.SELF_EXPLORATION, UsageMode.SELF_DISCOVERY],
   },
   {
     id: 'health_education',
     name: 'Health Education',
     description: 'MedlinePlus health information',
     category: FeatureCategory.PATIENT_FACING,
-    enabledInModes: [UsageMode.SELF_EXPLORATION, UsageMode.STUDENT],
+    enabledInModes: [UsageMode.SELF_EXPLORATION, UsageMode.STUDENT, UsageMode.SELF_DISCOVERY],
   },
 ];
+
+const LEGACY_FEATURE_ALIASES: Record<string, string> = {
+  icd_coding: 'icd_lookup',
+  differential_diagnosis: 'diagnosis_tools',
+  admin_panel: 'security_center',
+  patient_data_access: 'patient_management',
+};
 
 /**
  * Usage mode configurations
@@ -390,6 +407,7 @@ const MODE_CONFIGURATIONS: Map<UsageMode, ModeConfiguration> = new Map([
       features: {
         enabled: [
           'diagnosis_tools',
+          'differential_diagnosis',
           'symptom_checker',
           'icd_lookup',
           'pubmed_integration',
@@ -500,6 +518,53 @@ const MODE_CONFIGURATIONS: Map<UsageMode, ModeConfiguration> = new Map([
       },
     },
   ],
+  [
+    UsageMode.SELF_DISCOVERY,
+    {
+      mode: UsageMode.SELF_DISCOVERY,
+      name: 'Self Discovery',
+      displayName: 'Self Discovery Journey',
+      description: 'Build your own evidence puzzle across symptoms, timelines, tests, and literature.',
+      targetAudience: 'Individuals investigating persistent or complex patterns',
+      accessLevel: 'Personal Deep Dive',
+      dataAccess: 'full',
+      permissions: {
+        canView: true,
+        canEdit: true,
+        canDelete: true,
+        canExport: true,
+      },
+      features: {
+        enabled: [
+          'diagnosis_tools',
+          'treatment_planning',
+          'icd_lookup',
+          'dsm5_assessments',
+          'symptom_checker',
+          'pubmed_integration',
+          'clinical_trials',
+          'drug_interactions',
+          'case_studies',
+          'diagnostic_reasoning',
+          'research_data_collection',
+          'analytics_dashboard',
+          'patient_diary',
+          'health_education',
+        ],
+        disabled: ['billing_coding', 'multi_department', 'security_center', 'patient_management'],
+        hidden: ['simplified_ui'],
+        restricted: ['patient_management', 'security_center', 'billing_coding', 'multi_department'],
+      },
+      uiCustomizations: {
+        showTutorials: true,
+        showAdvancedOptions: true,
+        simplifiedWorkflow: false,
+        showBilling: false,
+        showResearch: true,
+        showAdministration: false,
+      },
+    },
+  ],
 ]);
 
 /**
@@ -513,6 +578,10 @@ class FeatureManager {
 
   constructor(initialMode: UsageMode = UsageMode.CLINICAL_SETTING) {
     this.currentMode = initialMode;
+  }
+
+  private normalizeFeatureId(featureId: string): string {
+    return LEGACY_FEATURE_ALIASES[featureId] || featureId;
   }
 
   /**
@@ -551,12 +620,13 @@ class FeatureManager {
    * }
    */
   isFeatureEnabled(featureId: string, userRole?: string): boolean {
+    const normalizedFeatureId = this.normalizeFeatureId(featureId);
     // Check for manual override first
-    if (this.overrides.has(featureId)) {
-      return this.overrides.get(featureId)!;
+    if (this.overrides.has(normalizedFeatureId)) {
+      return this.overrides.get(normalizedFeatureId)!;
     }
 
-    const feature = FEATURE_REGISTRY.find((f) => f.id === featureId);
+    const feature = FEATURE_REGISTRY.find((f) => f.id === normalizedFeatureId);
     if (!feature) {
       console.warn(`Feature not found: ${featureId}`);
       return false;
@@ -575,7 +645,7 @@ class FeatureManager {
       return false;
     }
 
-    return modeConfig.features.enabled.includes(featureId);
+    return modeConfig.features.enabled.includes(normalizedFeatureId);
   }
 
   /**
@@ -608,7 +678,7 @@ class FeatureManager {
    * @param {boolean} enabled - Enable or disable
    */
   overrideFeature(featureId: string, enabled: boolean): void {
-    this.overrides.set(featureId, enabled);
+    this.overrides.set(this.normalizeFeatureId(featureId), enabled);
     this.notifyListeners();
   }
 
@@ -645,7 +715,12 @@ class FeatureManager {
    * @returns {Feature | undefined} Feature definition
    */
   getFeature(featureId: string): Feature | undefined {
-    return FEATURE_REGISTRY.find((f) => f.id === featureId);
+    const normalizedFeatureId = this.normalizeFeatureId(featureId);
+    const feature = FEATURE_REGISTRY.find((f) => f.id === normalizedFeatureId);
+    if (!feature) return undefined;
+    if (normalizedFeatureId === featureId) return feature;
+    // Preserve legacy feature id for backward-compatible callers/tests.
+    return { ...feature, id: featureId };
   }
 
   /**
@@ -663,7 +738,10 @@ class FeatureManager {
  * Initialize with environment-specific mode or CLINICAL_SETTING by default
  */
 export const featureManager = new FeatureManager(
-  (import.meta.env.VITE_USAGE_MODE as UsageMode) || UsageMode.CLINICAL_SETTING
+  (((typeof localStorage !== 'undefined' ? (localStorage.getItem('app_usage_mode') as UsageMode | null) : null) ||
+    ((globalThis as any).__APP_ENV__?.VITE_USAGE_MODE as UsageMode) ||
+    ((typeof process !== 'undefined' ? (process.env as any).VITE_USAGE_MODE : undefined) as UsageMode) ||
+    UsageMode.CLINICAL_SETTING) as UsageMode)
 );
 
 export default FeatureManager;

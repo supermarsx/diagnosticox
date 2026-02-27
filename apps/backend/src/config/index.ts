@@ -8,7 +8,7 @@ export const config = {
   nodeEnv: process.env.NODE_ENV || 'development',
   
   database: {
-    type: (process.env.DB_TYPE || 'sqlite') as 'postgresql' | 'sqlite',
+    type: (process.env.DB_TYPE || 'sqlite') as 'postgresql' | 'sqlite' | 'json',
     postgres: {
       host: process.env.POSTGRES_HOST || 'localhost',
       port: parseInt(process.env.POSTGRES_PORT || '5432', 10),
@@ -18,6 +18,9 @@ export const config = {
     },
     sqlite: {
       path: process.env.SQLITE_DB_PATH || './research/medical_diagnosis.db',
+    },
+    json: {
+      path: process.env.JSON_DB_PATH || './research/medical_diagnosis.json',
     },
   },
   

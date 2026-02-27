@@ -47,6 +47,18 @@ export class AIController {
       age,
       sex,
       suggestions,
+      sources: [
+        {
+          id: 'internal-prototype-rulebase',
+          title: 'DiagnosticoX Prototype Clinical Rulebase',
+          type: 'internal',
+        },
+      ],
+      clinicianConfirmationRequired: true,
+      automationPolicy: {
+        autoOrderTests: false,
+        autoCloseProblems: false,
+      },
       plan: [
         'Rule out red flags (hemoptysis, weight loss, smoking history)',
         'If red flags absent, spirometry + trial ICS',

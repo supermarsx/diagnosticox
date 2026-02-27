@@ -4,6 +4,8 @@ import Redis from 'ioredis';
 import { config } from '../config';
 import { logger } from '../services/logger.service';
 
+const isTest = process.env.NODE_ENV === 'test';
+
 let redisClient: Redis | null = null;
 const redisUrl = process.env.REDIS_URL;
 
@@ -18,7 +20,7 @@ if (redisUrl) {
 
 export const commonRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per `window` (here, per 15 minutes)
+  max: isTest ? 100000 : 100, // Keep tests from tripping global limiter
   standardHeaders: true,
   legacyHeaders: false,
   store: redisClient ? new RedisStore({
@@ -32,7 +34,7 @@ export const commonRateLimit = rateLimit({
 
 export const authRateLimit = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 10, // Limit each IP to 10 login/register attempts per hour
+  max: isTest ? 100000 : 10, // Keep tests from tripping auth limiter
   standardHeaders: true,
   legacyHeaders: false,
   store: redisClient ? new RedisStore({

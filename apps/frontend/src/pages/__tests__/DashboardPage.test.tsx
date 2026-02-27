@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import DashboardPage from '../DashboardPage';
 import { apiService } from '../../services/apiService';
 
@@ -20,7 +21,11 @@ describe('DashboardPage', () => {
     const demoWithCounts = demo.map((p, i) => ({ ...p, problem_count: i === 0 ? 1 : 0, facts_count: i === 0 ? 2 : 0, last_activity: i === 0 ? '2025-10-02T00:00:00Z' : null }));
     (apiService as any).getPatients.mockResolvedValue({ patients: demoWithCounts, total: demoWithCounts.length });
 
-    render(<DashboardPage user={{ full_name: 'Test User' }} onLogout={() => {}} />);
+    render(
+      <MemoryRouter>
+        <DashboardPage user={{ full_name: 'Test User' }} onLogout={() => {}} />
+      </MemoryRouter>
+    );
 
     // wait for load
     await waitFor(() => expect(apiService.getPatients).toHaveBeenCalled());

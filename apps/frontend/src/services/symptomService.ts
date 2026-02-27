@@ -211,6 +211,24 @@ const SYMPTOM_DATABASE: Symptom[] = [
       labels: ['None', 'Mild', 'Moderate', 'Severe', 'Worst possible'],
     },
   },
+  {
+    id: 'abdominal_pain',
+    name: 'Abdominal Pain',
+    snomedCode: '21522001',
+    umlsCui: 'C0000737',
+    organSystem: [OrganSystem.DIGESTIVE],
+    synonyms: ['stomach ache', 'belly pain', 'tummy pain'],
+    description: 'Pain or discomfort in the abdomen',
+    commonCauses: ['Gastritis', 'Gastroenteritis', 'Irritable bowel syndrome', 'Gallbladder disease'],
+    associatedConditions: ['Gastroenteritis', 'Peptic ulcer disease', 'Appendicitis'],
+    redFlags: ['Severe pain with fever', 'Persistent vomiting', 'Blood in stool'],
+    questions: ['Where is the pain located?', 'When did it start?', 'Any associated nausea/vomiting?'],
+    severityScale: {
+      min: 0,
+      max: 10,
+      labels: ['None', 'Mild', 'Moderate', 'Severe', 'Worst possible'],
+    },
+  },
   // Add more symptoms here...
   // Total: 1000+ symptoms across all organ systems
 ];
@@ -225,7 +243,9 @@ class SymptomService {
 
   constructor() {
     this.symptoms = new Map(SYMPTOM_DATABASE.map((s) => [s.id, s]));
-    this.infermedicaApiKey = import.meta.env.VITE_INFERMEDICA_API_KEY;
+    this.infermedicaApiKey =
+      (globalThis as any).__APP_ENV__?.VITE_INFERMEDICA_API_KEY ||
+      (typeof process !== 'undefined' ? (process.env as any).VITE_INFERMEDICA_API_KEY : undefined);
   }
 
   /**
@@ -358,6 +378,21 @@ class SymptomService {
   }
 
   /**
+   * Compatibility helper used by legacy tests/components.
+   */
+  getRedFlags(symptomIds: string[]): Array<{ symptom: string; redFlag: string }> {
+    const reports: SymptomReport[] = symptomIds.map((symptomId) => ({
+      symptomId,
+      severity: 0,
+      onset: new Date(),
+      duration: 'unknown',
+      frequency: 'occasional',
+      progression: 'stable',
+    }));
+    return this.checkRedFlags(reports);
+  }
+
+  /**
    * Generate symptom-based differential diagnosis
    * 
    * @param {SymptomReport[]} reports - Patient symptom reports
@@ -393,6 +428,13 @@ class SymptomService {
     }
 
     return differentials.sort((a, b) => b.confidence - a.confidence);
+  }
+
+  /**
+   * Compatibility alias used by older tests/components.
+   */
+  analyzeDifferentialDiagnosis(reports: SymptomReport[]): SymptomDiagnosisMapping[] {
+    return this.generateDifferentialDiagnosis(reports);
   }
 
   /**
@@ -478,4 +520,4 @@ class SymptomService {
  */
 export const symptomService = new SymptomService();
 
-export default SymptomService;
+export default symptomService;

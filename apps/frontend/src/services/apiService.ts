@@ -2,10 +2,12 @@ import { offlineStorage } from './offlineStorage';
 import { demoPatients, demoProblems, demoHypotheses, demoTimelineEvents, demoUser } from './demoData';
 import type { Patient, Problem, Hypothesis, Trial, TimelineEvent, DiaryEntry } from '../types/medical';
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_URL ||
-  import.meta.env.VITE_API_BASE_URL ||
+const runtimeEnv = (globalThis as any).__APP_ENV__ || (typeof process !== 'undefined' ? process.env : {});
+const DEFAULT_API_BASE_URL =
+  runtimeEnv.VITE_API_URL ||
+  runtimeEnv.VITE_API_BASE_URL ||
   'http://localhost:3000/api';
+const API_URL_OVERRIDE_KEY = 'app_api_url_override';
 
 /**
  * ApiService
@@ -18,6 +20,7 @@ const API_BASE_URL =
 class ApiService {
   private token: string | null = null;
   private isOnline: boolean = navigator.onLine;
+  private refreshToken: string | null = null;
 
   constructor() {
     this.token = localStorage.getItem('auth_token');
@@ -49,6 +52,16 @@ class ApiService {
     this.token = null;
     localStorage.removeItem('auth_token');
     this.setRefreshToken(null);
+  }
+
+  getApiBaseUrl(): string {
+    const override = localStorage.getItem(API_URL_OVERRIDE_KEY);
+    return override || DEFAULT_API_BASE_URL;
+  }
+
+  setApiBaseUrl(url: string) {
+    const normalized = url.endsWith('/') ? url.slice(0, -1) : url;
+    localStorage.setItem(API_URL_OVERRIDE_KEY, normalized);
   }
 
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -95,7 +108,7 @@ class ApiService {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      const response = await fetch(`${this.getApiBaseUrl()}${endpoint}`, {
         ...options,
         headers,
       });
@@ -108,7 +121,7 @@ class ApiService {
             if (didRefresh) {
               // retry original request with new token
               if (this.token) headers['Authorization'] = `Bearer ${this.token}`;
-              const retry = await fetch(`${API_BASE_URL}${endpoint}`, { ...options, headers });
+              const retry = await fetch(`${this.getApiBaseUrl()}${endpoint}`, { ...options, headers });
               if (retry.ok) return retry.json();
             }
           }
@@ -179,7 +192,7 @@ class ApiService {
     if (!this.refreshToken) return false;
 
     try {
-      const res = await fetch(`${API_BASE_URL}/auth/token/refresh`, {
+      const res = await fetch(`${this.getApiBaseUrl()}/auth/token/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refreshToken: this.refreshToken }),
@@ -254,6 +267,32 @@ class ApiService {
       body: JSON.stringify({ email, password, fullName, organizationId }),
     });
     
+    this.setToken(data.token);
+    if ((data as any).refreshToken) {
+      this.setRefreshToken((data as any).refreshToken);
+    }
+    return data;
+  }
+
+  async getBootstrapStatus(): Promise<{ needsBootstrap: boolean }> {
+    return this.request<{ needsBootstrap: boolean }>('/auth/bootstrap-status');
+  }
+
+  async bootstrapAdmin(payload: {
+    org_name: string;
+    admin_email: string;
+    admin_password: string;
+    admin_full_name: string;
+    org_id?: string;
+  }): Promise<{ organizationId: string; user: any; token: string; refreshToken?: string }> {
+    const data = await this.request<{ organizationId: string; user: any; token: string; refreshToken?: string }>(
+      '/auth/bootstrap',
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }
+    );
+
     this.setToken(data.token);
     if ((data as any).refreshToken) {
       this.setRefreshToken((data as any).refreshToken);

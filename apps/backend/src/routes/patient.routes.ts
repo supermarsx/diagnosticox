@@ -8,11 +8,11 @@ const router = Router();
 
 router.use(authenticate, enforceTenant);
 
-router.get('/', patientController.list.bind(patientController));
-router.get('/summary', patientController.summary.bind(patientController));
-router.get('/:id', patientController.get.bind(patientController));
-router.post('/', authorize('admin', 'clinician'), validate(patientSchema), patientController.create.bind(patientController));
-router.put('/:id', authorize('admin', 'clinician'), patientController.update.bind(patientController));
-router.delete('/:id', authorize('admin'), patientController.delete.bind(patientController));
+router.get('/', (req, res) => patientController.list(req as any, res));
+router.get('/summary', (req, res) => patientController.summary(req as any, res));
+router.get('/:id', (req, res) => patientController.get(req as any, res));
+router.post('/', authorize('admin', 'clinician'), validate(patientSchema), (req, res) => patientController.create(req as any, res));
+router.put('/:id', authorize('admin', 'clinician'), (req, res) => patientController.update(req as any, res));
+router.delete('/:id', authorize('admin'), (req, res) => patientController.delete(req as any, res));
 
 export default router;

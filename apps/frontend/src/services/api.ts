@@ -1,7 +1,9 @@
+const runtimeEnv = (globalThis as any).__APP_ENV__ || (typeof process !== 'undefined' ? process.env : {});
 const API_BASE_URL =
-  import.meta.env.VITE_API_URL ||
-  import.meta.env.VITE_API_BASE_URL ||
+  runtimeEnv.VITE_API_URL ||
+  runtimeEnv.VITE_API_BASE_URL ||
   'http://localhost:3000/api';
+const API_URL_OVERRIDE_KEY = 'app_api_url_override';
 
 export interface ApiResponse<T> {
   data?: T;
@@ -40,7 +42,12 @@ class ApiClient {
       headers['Authorization'] = `Bearer ${this.token}`;
     }
 
-    const response = await fetch(`${this.baseUrl}${endpoint}`, {
+    const base =
+      typeof localStorage !== 'undefined'
+        ? localStorage.getItem(API_URL_OVERRIDE_KEY) || this.baseUrl
+        : this.baseUrl;
+
+    const response = await fetch(`${base}${endpoint}`, {
       ...options,
       headers,
     });

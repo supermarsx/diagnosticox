@@ -118,6 +118,129 @@ export class FhirController {
     }
   }
 
+  async getDiagnosticReports(req: AuthRequest, res: Response) {
+    try {
+      const { patientId } = req.params;
+      const organizationId = req.tenantId || req.user!.organizationId;
+      await ensurePatientAccessible(patientId, organizationId);
+
+      const testRows = await this.db.query(
+        `SELECT to1.*, tr.result_value, tr.result_interpretation, tr.resulted_at
+         FROM test_orders to1
+         LEFT JOIN test_results tr ON tr.test_order_id = to1.id
+         WHERE to1.patient_id = ? AND to1.organization_id = ?
+         ORDER BY to1.ordered_at DESC`,
+        [patientId, organizationId]
+      );
+
+      const reports = testRows.map((row: any) => ({
+        resourceType: 'DiagnosticReport',
+        id: row.id,
+        status: row.status === 'completed' ? 'final' : 'preliminary',
+        code: {
+          text: row.test_name,
+        },
+        subject: { reference: `Patient/${patientId}` },
+        effectiveDateTime: row.resulted_at || row.ordered_at,
+        issued: row.resulted_at || row.ordered_at,
+        conclusion: row.result_interpretation || undefined,
+        presentedForm: row.result_value
+          ? [{ contentType: 'text/plain', data: Buffer.from(String(row.result_value)).toString('base64') }]
+          : undefined,
+      }));
+
+      res.json({ resourceType: 'Bundle', type: 'searchset', entry: reports.map((r: any) => ({ resource: r })) });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  async getMedicationStatements(req: AuthRequest, res: Response) {
+    try {
+      const { patientId } = req.params;
+      const organizationId = req.tenantId || req.user!.organizationId;
+      await ensurePatientAccessible(patientId, organizationId);
+
+      const trials = await this.db.query(
+        `SELECT * FROM treatment_trials
+         WHERE patient_id = ? AND organization_id = ?
+         ORDER BY start_date DESC`,
+        [patientId, organizationId]
+      );
+
+      const meds = trials.map((trial: any) => ({
+        resourceType: 'MedicationStatement',
+        id: trial.id,
+        status: trial.status === 'completed' ? 'completed' : 'active',
+        medicationCodeableConcept: {
+          text: trial.intervention,
+        },
+        subject: { reference: `Patient/${patientId}` },
+        effectivePeriod: {
+          start: trial.start_date,
+          end: trial.actual_end_date || trial.planned_end_date || undefined,
+        },
+        dosage: trial.dose_schedule ? [{ text: trial.dose_schedule }] : undefined,
+        note: trial.clinical_notes ? [{ text: trial.clinical_notes }] : undefined,
+      }));
+
+      res.json({ resourceType: 'Bundle', type: 'searchset', entry: meds.map((m: any) => ({ resource: m })) });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  async createCondition(req: AuthRequest, res: Response) {
+    try {
+      const organizationId = req.tenantId || req.user!.organizationId;
+      const { userId } = req.user!;
+      const condition = req.body;
+
+      if (!condition?.resourceType || condition.resourceType !== 'Condition') {
+        return res.status(400).json({ error: 'Invalid Condition resource' });
+      }
+
+      const patientRef = condition.subject?.reference;
+      if (!patientRef || !patientRef.startsWith('Patient/')) {
+        return res.status(400).json({ error: 'Condition.subject.reference must be Patient/{id}' });
+      }
+      const patientId = patientRef.split('/')[1];
+      await ensurePatientAccessible(patientId, organizationId);
+
+      const id = uuidv4();
+      const now = new Date().toISOString();
+      const problemName = condition.code?.text || condition.code?.coding?.[0]?.display || 'Condition';
+      const problemType = condition.category?.[0]?.coding?.[0]?.code || 'problem-list-item';
+      const status = condition.clinicalStatus?.coding?.[0]?.code || 'active';
+
+      await this.db.execute(
+        `INSERT INTO problems (
+          id, patient_id, organization_id, problem_name, problem_type,
+          onset_date, status, priority, clinical_context, created_by, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          id,
+          patientId,
+          organizationId,
+          problemName,
+          problemType,
+          condition.onsetDateTime || null,
+          status,
+          0,
+          condition.note?.[0]?.text || null,
+          userId,
+          now,
+          now,
+        ]
+      );
+
+      const created = await this.db.get('SELECT * FROM problems WHERE id = ?', [id]);
+      res.status(201).json(this.problemToCondition(created, organizationId));
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
   private factToObservation(fact: any, organizationId: string) {
     return {
       resourceType: 'Observation',

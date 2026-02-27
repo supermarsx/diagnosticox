@@ -8,6 +8,7 @@
  * authentication UI as part of security hardening.
  */
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Activity, AlertCircle, Lock, Mail } from 'lucide-react';
 import { apiService } from '../services/apiService';
 import { useAuth } from '../contexts/AuthContext';
@@ -184,9 +185,15 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
         </div>
 
         {/* Footer Text */}
-        <p className="text-center text-xs text-gray-500 mt-6">
-          Secure authentication • HIPAA compliant • Protected by encryption
-        </p>
+        <div className="text-center text-xs text-gray-500 mt-6 space-y-2">
+          <p>Secure authentication • HIPAA compliant • Protected by encryption</p>
+          <p>
+            Need to configure first?{' '}
+            <Link to="/onboarding" className="text-indigo-700 font-semibold hover:underline">
+              Open setup wizard
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );

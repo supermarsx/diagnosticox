@@ -28,7 +28,8 @@ import {
   Building2,
   User,
   Info,
-  Shield
+  Shield,
+  Compass
 } from 'lucide-react';
 
 interface ModeCardProps {
@@ -47,6 +48,7 @@ const ModeCard: React.FC<ModeCardProps> = ({ mode, isActive, onSelect }) => {
     [UsageMode.STUDENT]: GraduationCap,
     [UsageMode.FULL_HOSPITAL]: Building2,
     [UsageMode.SELF_EXPLORATION]: User,
+    [UsageMode.SELF_DISCOVERY]: Compass,
   };
 
   const Icon = modeIcons[mode];

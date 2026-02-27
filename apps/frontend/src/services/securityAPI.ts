@@ -1,8 +1,9 @@
 import axios from 'axios';
 
+const runtimeEnv = (globalThis as any).__APP_ENV__ || (typeof process !== 'undefined' ? process.env : {});
 const API_BASE_URL =
-  import.meta.env.VITE_API_URL ||
-  import.meta.env.VITE_API_BASE_URL ||
+  runtimeEnv.VITE_API_URL ||
+  runtimeEnv.VITE_API_BASE_URL ||
   'http://localhost:3000/api';
 
 // Get auth token from localStorage

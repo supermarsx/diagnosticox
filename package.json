@@ -1,7 +1,7 @@
 {
   "name": "diagnosticox-monorepo",
   "private": true,
-  "packageManager": "pnpm@8",
+  "packageManager": "pnpm@8.15.9",
   "scripts": {
     "lint": "pnpm --filter diagnosticox-frontend run lint",
     "format:check": "pnpm --filter diagnosticox-frontend run format:check",

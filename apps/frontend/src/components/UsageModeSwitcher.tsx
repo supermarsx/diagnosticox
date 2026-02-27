@@ -15,7 +15,8 @@ import {
   Microscope, 
   GraduationCap, 
   Building2, 
-  Heart 
+  Heart,
+  Compass
 } from 'lucide-react';
 
 interface UsageModeOption {
@@ -49,6 +50,11 @@ const MODE_OPTIONS: UsageModeOption[] = [
     mode: UsageMode.SELF_EXPLORATION,
     icon: <Heart className="w-6 h-6" />,
     color: 'pink',
+  },
+  {
+    mode: UsageMode.SELF_DISCOVERY,
+    icon: <Compass className="w-6 h-6" />,
+    color: 'teal',
   },
 ];
 

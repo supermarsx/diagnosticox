@@ -304,8 +304,8 @@ class ICDService {
  * Configure with environment variables before use
  */
 export const icdService = new ICDService({
-  clientId: import.meta.env.VITE_WHO_ICD_CLIENT_ID || '',
-  clientSecret: import.meta.env.VITE_WHO_ICD_CLIENT_SECRET || '',
+  clientId: ((globalThis as any).__APP_ENV__?.VITE_WHO_ICD_CLIENT_ID || (typeof process !== 'undefined' ? (process.env as any).VITE_WHO_ICD_CLIENT_ID : '')) || '',
+  clientSecret: ((globalThis as any).__APP_ENV__?.VITE_WHO_ICD_CLIENT_SECRET || (typeof process !== 'undefined' ? (process.env as any).VITE_WHO_ICD_CLIENT_SECRET : '')) || '',
   tokenEndpoint: 'https://icdaccessmanagement.who.int/connect/token',
   apiBaseUrl: 'https://id.who.int',
   language: 'en',

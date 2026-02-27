@@ -61,7 +61,8 @@ export default function AdaptiveManagementPage() {
     { value: 'hospital', label: 'Hospital System', color: 'green' },
     { value: 'study', label: 'Research Study', color: 'purple' },
     { value: 'student', label: 'Medical Student', color: 'orange' },
-    { value: 'self_exploration', label: 'Self-Exploration', color: 'pink' }
+    { value: 'self_exploration', label: 'Self-Exploration', color: 'pink' },
+    { value: 'self_discovery', label: 'Self Discovery Journey', color: 'teal' }
   ];
 
   const getStatusColor = (status: string) => {

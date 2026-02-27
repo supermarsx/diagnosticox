@@ -41,11 +41,20 @@ import FHIRInteroperabilityPage from './pages/FHIRInteroperabilityPage';
 import AdaptiveManagementPage from './pages/AdaptiveManagementPage';
 import CacheMetricsDashboard from './pages/CacheMetricsDashboard';
 import ConstellationPage from './pages/ConstellationPage';
+import OnboardingPage from './pages/OnboardingPage';
+import SelfDiscoveryHubPage from './pages/SelfDiscoveryHubPage';
+import SelfDiscoveryTimelinePage from './pages/SelfDiscoveryTimelinePage';
+import SelfDiscoveryHypothesesPage from './pages/SelfDiscoveryHypothesesPage';
+import SelfDiscoveryEvidencePage from './pages/SelfDiscoveryEvidencePage';
+import SelfDiscoveryJournalPage from './pages/SelfDiscoveryJournalPage';
 import { apiService } from './services/apiService';
 
 function App() {
   const { user, login, logout } = useAuth();
   const [loading, setLoading] = useState(true);
+  const [onboardingCompleted, setOnboardingCompleted] = useState(
+    localStorage.getItem('app_onboarding_completed') === 'true'
+  );
 
   useEffect(() => {
     // initial load defer to AuthProvider
@@ -67,9 +76,21 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route 
+          path="/onboarding"
+          element={
+            onboardingCompleted ? (
+              <Navigate to={user ? '/dashboard' : '/login'} replace />
+            ) : (
+              <OnboardingPage onCompleted={() => setOnboardingCompleted(true)} />
+            )
+          }
+        />
+        <Route 
           path="/login" 
           element={
-            !user ? (
+            !onboardingCompleted ? (
+              <Navigate to="/onboarding" replace />
+            ) : !user ? (
               <LoginPage />
             ) : (
               <Navigate to="/dashboard" replace />
@@ -466,7 +487,32 @@ function App() {
             )
           }
         />
-        <Route path="/" element={<Navigate to={user ? "/dashboard" : "/login"} replace />} />
+        <Route
+          path="/self-discovery"
+          element={user ? <SelfDiscoveryHubPage /> : <Navigate to="/login" replace />}
+        />
+        <Route
+          path="/self-discovery/timeline"
+          element={user ? <SelfDiscoveryTimelinePage /> : <Navigate to="/login" replace />}
+        />
+        <Route
+          path="/self-discovery/hypotheses"
+          element={user ? <SelfDiscoveryHypothesesPage /> : <Navigate to="/login" replace />}
+        />
+        <Route
+          path="/self-discovery/evidence"
+          element={user ? <SelfDiscoveryEvidencePage /> : <Navigate to="/login" replace />}
+        />
+        <Route
+          path="/self-discovery/journal"
+          element={user ? <SelfDiscoveryJournalPage /> : <Navigate to="/login" replace />}
+        />
+        <Route
+          path="/"
+          element={
+            <Navigate to={user ? '/dashboard' : onboardingCompleted ? '/login' : '/onboarding'} replace />
+          }
+        />
       </Routes>
     </BrowserRouter>
   );

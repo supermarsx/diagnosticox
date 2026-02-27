@@ -6,10 +6,8 @@
 
 import { describe, it, expect, beforeEach } from '@jest/globals';
 import symptomService from '../symptomService';
-import type {
-  OrganSystem,
-  SymptomReport,
-} from '../symptomService';
+import { OrganSystem } from '../symptomService';
+import type { SymptomReport } from '../symptomService';
 
 describe('SymptomService', () => {
   const service = symptomService;

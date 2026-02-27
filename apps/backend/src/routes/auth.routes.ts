@@ -19,6 +19,15 @@ import { idempotencyHandler } from '../middleware/idempotency.middleware';
  */
 const router = Router();
 
+router.get('/bootstrap-status', async (_req, res) => {
+  try {
+    const needsBootstrap = await authService.needsBootstrap();
+    res.json({ needsBootstrap });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Failed to get bootstrap status' });
+  }
+});
+
 router.post('/register', idempotencyHandler, async (req, res) => {
   // try to attach an OTEL span around registration if tracing is available
   try {

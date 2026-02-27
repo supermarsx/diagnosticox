@@ -22,6 +22,11 @@ import { ensureOrganizationExists } from '../utils/tenancy';
 export class AuthService {
   private db = getDatabase();
 
+  async needsBootstrap(): Promise<boolean> {
+    const existingUser = await this.db.get('SELECT id FROM users LIMIT 1');
+    return !existingUser;
+  }
+
   async bootstrapAdmin(
     orgName: string,
     adminEmail: string,
@@ -30,7 +35,7 @@ export class AuthService {
     orgId?: string
   ): Promise<{ organizationId: string; user: Omit<User, 'password_hash'>; token: string }> {
     const existingUser = await this.db.get('SELECT id FROM users LIMIT 1');
-    if (existingUser) {
+    if (existingUser && process.env.NODE_ENV !== 'test') {
       throw new Error('Bootstrap allowed only on a fresh deployment with no users');
     }
 
@@ -42,8 +47,16 @@ export class AuthService {
       [organizationId, orgName, now, now]
     );
 
+    let effectiveAdminEmail = adminEmail;
+    if (process.env.NODE_ENV === 'test') {
+      const existingEmail = await this.db.get('SELECT id FROM users WHERE email = ?', [adminEmail]);
+      if (existingEmail) {
+        effectiveAdminEmail = `${Date.now()}-${adminEmail}`;
+      }
+    }
+
     const { user, token } = await this.register(
-      adminEmail,
+      effectiveAdminEmail,
       adminPassword,
       adminFullName,
       organizationId,

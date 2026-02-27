@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { authService } from '../services/auth.service';
+import { updateRequestContext } from '../services/request-context.service';
 
 /**
  * AuthRequest augments the standard Express Request object with authenticated
@@ -40,6 +41,11 @@ export function authenticate(req: AuthRequest, res: Response, next: NextFunction
 
     req.user = decoded;
     req.tenantId = decoded.organizationId;
+    updateRequestContext({
+      organizationId: decoded.organizationId,
+      role: decoded.role,
+      userId: decoded.userId,
+    });
     next();
   } catch (error) {
     return res.status(401).json({ error: 'Invalid token' });
@@ -100,6 +106,11 @@ export function enforceTenant(req: AuthRequest, res: Response, next: NextFunctio
   }
 
   req.tenantId = tokenOrg;
+  updateRequestContext({
+    organizationId: tokenOrg,
+    role: req.user?.role,
+    userId: req.user?.userId,
+  });
 
   // Normalize body org so downstream inserts/updates stay scoped
   if (req.body && typeof req.body === 'object') {

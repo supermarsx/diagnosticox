@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Users, Activity, AlertCircle, Plus, LogOut, RefreshCw, TrendingUp, Brain, BarChart3, Bell, Mic, Activity as MonitorIcon, Eye, Shield } from 'lucide-react';
+import { Users, Activity, AlertCircle, Plus, LogOut, RefreshCw, TrendingUp, Brain, BarChart3, Bell, Mic, Activity as MonitorIcon, Eye, Shield, Compass } from 'lucide-react';
 import { apiService } from '../services/apiService';
 import type { Patient } from '../types/medical';
 
@@ -169,6 +169,13 @@ export default function DashboardPage({ user, onLogout }: DashboardPageProps) {
               >
                 <Shield className="h-4 w-4" />
                 Security
+              </Link>
+              <Link
+                to="/self-discovery"
+                className="glass-button-primary inline-flex items-center gap-2"
+              >
+                <Compass className="h-4 w-4" />
+                Self Discovery
               </Link>
               <button
                 onClick={onLogout}
